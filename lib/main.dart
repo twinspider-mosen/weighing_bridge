@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:weighing_bridge/test_screen.dart';
+import 'package:media_kit/media_kit.dart';
 import 'scale_service.dart';
 
 void main() {
+  WidgetsFlutterBinding.ensureInitialized();
+  MediaKit.ensureInitialized();
   runApp(const WeighingBridgeApp());
 }
 
@@ -20,7 +24,7 @@ class WeighingBridgeApp extends StatelessWidget {
         scaffoldBackgroundColor: const Color(0xFF0A0E12),
         useMaterial3: true,
       ),
-      home: const WeighingScreen(),
+      home: const TestScreen(),
     );
   }
 }
@@ -99,11 +103,15 @@ class _WeighingScreenState extends State<WeighingScreen> {
 
     try {
       // Add a total timeout for the entire scan process
-      final config = await _scaleService.scanPort(_selectedPort!)
+      final config = await _scaleService
+          .scanPort(_selectedPort!)
           .timeout(const Duration(seconds: 45));
 
       if (config != null) {
-        final success = await _scaleService.startListening(_selectedPort!, config);
+        final success = await _scaleService.startListening(
+          _selectedPort!,
+          config,
+        );
         setState(() {
           _activeConfig = config;
           _isListening = success;
@@ -134,7 +142,10 @@ class _WeighingScreenState extends State<WeighingScreen> {
       });
     } else {
       if (_activeConfig != null && _selectedPort != null) {
-        final success = await _scaleService.startListening(_selectedPort!, _activeConfig!);
+        final success = await _scaleService.startListening(
+          _selectedPort!,
+          _activeConfig!,
+        );
         setState(() {
           _isListening = success;
           _status = success ? 'Connected' : 'Connection Failed';
@@ -159,10 +170,7 @@ class _WeighingScreenState extends State<WeighingScreen> {
           gradient: RadialGradient(
             center: Alignment.center,
             radius: 1.5,
-            colors: [
-              const Color(0xFF1A1F25),
-              const Color(0xFF0A0E12),
-            ],
+            colors: [const Color(0xFF1A1F25), const Color(0xFF0A0E12)],
           ),
         ),
         child: SafeArea(
@@ -213,7 +221,9 @@ class _WeighingScreenState extends State<WeighingScreen> {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           decoration: BoxDecoration(
-            color: _isListening ? Colors.green.withOpacity(0.1) : Colors.red.withOpacity(0.1),
+            color: _isListening
+                ? Colors.green.withOpacity(0.1)
+                : Colors.red.withOpacity(0.1),
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
               color: _isListening ? Colors.greenAccent : Colors.redAccent,
@@ -231,7 +241,9 @@ class _WeighingScreenState extends State<WeighingScreen> {
                   color: _isListening ? Colors.greenAccent : Colors.redAccent,
                   boxShadow: [
                     BoxShadow(
-                      color: _isListening ? Colors.greenAccent : Colors.redAccent,
+                      color: _isListening
+                          ? Colors.greenAccent
+                          : Colors.redAccent,
                       blurRadius: 10,
                       spreadRadius: 2,
                     ),
@@ -265,9 +277,7 @@ class _WeighingScreenState extends State<WeighingScreen> {
             decoration: BoxDecoration(
               color: Colors.black.withOpacity(0.4),
               borderRadius: BorderRadius.circular(30),
-              border: Border.all(
-                color: Colors.white.withOpacity(0.05),
-              ),
+              border: Border.all(color: Colors.white.withOpacity(0.05)),
               boxShadow: [
                 BoxShadow(
                   color: Colors.greenAccent.withOpacity(0.05),
@@ -326,15 +336,13 @@ class _WeighingScreenState extends State<WeighingScreen> {
 
   Widget _buildControls() {
     final ports = _scaleService.getAvailablePorts();
-    
+
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.03),
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(
-          color: Colors.white.withOpacity(0.05),
-        ),
+        border: Border.all(color: Colors.white.withOpacity(0.05)),
       ),
       child: Row(
         children: [
@@ -359,20 +367,35 @@ class _WeighingScreenState extends State<WeighingScreen> {
                         child: DropdownButton<String>(
                           isExpanded: true,
                           value: _selectedPort,
-                          items: ports.map((p) => DropdownMenuItem(
-                            value: p,
-                            child: Text(p, style: GoogleFonts.inter(fontSize: 16)),
-                          )).toList(),
-                          onChanged: _isScanning || _isListening ? null : (val) {
-                            setState(() => _selectedPort = val);
-                          },
+                          items: ports
+                              .map(
+                                (p) => DropdownMenuItem(
+                                  value: p,
+                                  child: Text(
+                                    p,
+                                    style: GoogleFonts.inter(fontSize: 16),
+                                  ),
+                                ),
+                              )
+                              .toList(),
+                          onChanged: _isScanning || _isListening
+                              ? null
+                              : (val) {
+                                  setState(() => _selectedPort = val);
+                                },
                           dropdownColor: const Color(0xFF1A1F25),
                         ),
                       ),
                     ),
                     IconButton(
-                      icon: const Icon(Icons.refresh, size: 20, color: Colors.white38),
-                      onPressed: _isScanning || _isListening ? null : _refreshPorts,
+                      icon: const Icon(
+                        Icons.refresh,
+                        size: 20,
+                        color: Colors.white38,
+                      ),
+                      onPressed: _isScanning || _isListening
+                          ? null
+                          : _refreshPorts,
                       tooltip: 'Refresh Ports',
                     ),
                   ],
@@ -412,10 +435,7 @@ class _WeighingScreenState extends State<WeighingScreen> {
       icon: Icon(icon, size: 20),
       label: Text(
         label,
-        style: GoogleFonts.inter(
-          fontWeight: FontWeight.bold,
-          letterSpacing: 1,
-        ),
+        style: GoogleFonts.inter(fontWeight: FontWeight.bold, letterSpacing: 1),
       ),
       style: ElevatedButton.styleFrom(
         backgroundColor: isPrimary ? color : color.withOpacity(0.1),
@@ -423,7 +443,9 @@ class _WeighingScreenState extends State<WeighingScreen> {
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
-          side: isPrimary ? BorderSide.none : BorderSide(color: color.withOpacity(0.3)),
+          side: isPrimary
+              ? BorderSide.none
+              : BorderSide(color: color.withOpacity(0.3)),
         ),
         elevation: isPrimary ? 8 : 0,
         shadowColor: color.withOpacity(0.4),
