@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:weighing_bridge/test_screen.dart';
 import 'package:media_kit/media_kit.dart';
+import 'package:weighing_bridge/camera_management_screen.dart';
+import 'package:weighing_bridge/test_screen.dart';
+import 'camera_service.dart';
+import 'live_camera_player.dart';
 import 'scale_service.dart';
 
 void main() {
@@ -24,7 +27,7 @@ class WeighingBridgeApp extends StatelessWidget {
         scaffoldBackgroundColor: const Color(0xFF0A0E12),
         useMaterial3: true,
       ),
-      home: const TestScreen(),
+      home: const WeighingScreen(),
     );
   }
 }
@@ -37,6 +40,7 @@ class WeighingScreen extends StatefulWidget {
 }
 
 class _WeighingScreenState extends State<WeighingScreen> {
+  // Scale state
   final ScaleService _scaleService = ScaleService();
   String _currentWeight = '0.00';
   String _unit = 'kg';
@@ -46,11 +50,32 @@ class _WeighingScreenState extends State<WeighingScreen> {
   String _status = 'Disconnected';
   ScaleConfig? _activeConfig;
 
+  // Camera state
+  final CameraStorageService _cameraStorage = CameraStorageService();
+  List<CameraConfig> _savedCameras = [];
+  CameraConfig? _selectedCamera;
+  final GlobalKey<LiveCameraPlayerState> _cameraPlayerKey = GlobalKey<LiveCameraPlayerState>();
+  bool _isCapturingSnap = false;
+
   @override
   void initState() {
     super.initState();
     _refreshPorts();
+    _loadSavedCameras();
     _scaleService.weightStream.listen(_handleNewData);
+  }
+
+  Future<void> _loadSavedCameras() async {
+    final cameras = await _cameraStorage.getCameras();
+    setState(() {
+      _savedCameras = cameras;
+      if (_selectedCamera != null && !cameras.any((c) => c.id == _selectedCamera!.id)) {
+        _selectedCamera = null;
+      }
+      if (_selectedCamera == null && cameras.isNotEmpty) {
+        _selectedCamera = cameras.first;
+      }
+    });
   }
 
   void _refreshPorts() {
@@ -74,7 +99,6 @@ class _WeighingScreenState extends State<WeighingScreen> {
   }
 
   void _handleNewData(String data) {
-    // Data is already cleaned by service. We just need to extract the number part.
     final match = RegExp(r'([0-9]+\.[0-9]+|[0-9]+)').firstMatch(data);
     final unitMatch = RegExp(r'(kg|lb|g)').firstMatch(data.toLowerCase());
 
@@ -102,7 +126,6 @@ class _WeighingScreenState extends State<WeighingScreen> {
     });
 
     try {
-      // Add a total timeout for the entire scan process
       final config = await _scaleService
           .scanPort(_selectedPort!)
           .timeout(const Duration(seconds: 45));
@@ -156,6 +179,46 @@ class _WeighingScreenState extends State<WeighingScreen> {
     }
   }
 
+  Future<void> _captureCameraSnap() async {
+    if (_selectedCamera == null) return;
+    setState(() => _isCapturingSnap = true);
+    try {
+      final savedPath = await _cameraPlayerKey.currentState?.captureSnapshot();
+      if (savedPath != null && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: Colors.green.shade800,
+            content: Row(
+              children: [
+                const Icon(Icons.check_circle, color: Colors.white),
+                const SizedBox(width: 8),
+                Expanded(child: Text("Snapshot captured successfully:\n$savedPath")),
+              ],
+            ),
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: Colors.red.shade800,
+            content: Row(
+              children: [
+                const Icon(Icons.error_outline, color: Colors.white),
+                const SizedBox(width: 8),
+                Expanded(child: Text("Capture Error: $e")),
+              ],
+            ),
+          ),
+        );
+      }
+    } finally {
+      setState(() => _isCapturingSnap = false);
+    }
+  }
+
   @override
   void dispose() {
     _scaleService.dispose();
@@ -165,26 +228,73 @@ class _WeighingScreenState extends State<WeighingScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF1A1F25),
+        elevation: 0,
+        title: Row(
+          children: [
+            const Icon(Icons.scale, color: Colors.greenAccent),
+            const SizedBox(width: 12),
+            Text(
+              'WEIGHING BRIDGE OPERATOR DASHBOARD',
+              style: GoogleFonts.inter(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 2,
+              ),
+            ),
+          ],
+        ),
+      ),
+      drawer: _buildDrawer(),
       body: Container(
-        decoration: BoxDecoration(
+        decoration: const BoxDecoration(
           gradient: RadialGradient(
             center: Alignment.center,
             radius: 1.5,
-            colors: [const Color(0xFF1A1F25), const Color(0xFF0A0E12)],
+            colors: [Color(0xFF1A1F25), Color(0xFF0A0E12)],
           ),
         ),
         child: SafeArea(
           child: Padding(
-            padding: const EdgeInsets.all(32.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                _buildHeader(),
-                const Spacer(),
-                _buildWeightDisplay(),
-                const Spacer(),
-                _buildControls(),
-              ],
+            padding: const EdgeInsets.all(24.0),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                if (constraints.maxWidth > 950) {
+                  return Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Expanded(
+                        flex: 3,
+                        child: _buildWeighingColumn(),
+                      ),
+                      const SizedBox(width: 24),
+                      Container(
+                        width: 1,
+                        color: Colors.white.withOpacity(0.1),
+                      ),
+                      const SizedBox(width: 24),
+                      Expanded(
+                        flex: 2,
+                        child: _buildCameraColumn(),
+                      ),
+                    ],
+                  );
+                } else {
+                  return SingleChildScrollView(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        _buildWeighingColumn(),
+                        const SizedBox(height: 32),
+                        const Divider(color: Colors.white24),
+                        const SizedBox(height: 32),
+                        _buildCameraColumn(),
+                      ],
+                    ),
+                  );
+                }
+              },
             ),
           ),
         ),
@@ -192,7 +302,235 @@ class _WeighingScreenState extends State<WeighingScreen> {
     );
   }
 
-  Widget _buildHeader() {
+  Widget _buildDrawer() {
+    return Drawer(
+      backgroundColor: const Color(0xFF1A1F25),
+      child: Column(
+        children: [
+          UserAccountsDrawerHeader(
+            decoration: BoxDecoration(
+              color: Colors.greenAccent.shade700.withOpacity(0.2),
+            ),
+            accountName: Text(
+              'Weighbridge System',
+              style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 18),
+            ),
+            accountEmail: Text(
+              'v2.0 • Serial & IP Camera Engine',
+              style: GoogleFonts.inter(color: Colors.greenAccent, fontSize: 12),
+            ),
+            currentAccountPicture: const CircleAvatar(
+              backgroundColor: Colors.greenAccent,
+              child: Icon(Icons.factory_outlined, color: Colors.black, size: 32),
+            ),
+          ),
+          ListTile(
+            leading: const Icon(Icons.dashboard_outlined, color: Colors.greenAccent),
+            title: const Text('Weighing Screen', style: TextStyle(color: Colors.white)),
+            onTap: () {
+              Navigator.pop(context);
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.videocam_outlined, color: Colors.blueAccent),
+            title: const Text('IP Camera Management', style: TextStyle(color: Colors.white)),
+            onTap: () async {
+              Navigator.pop(context);
+              await Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const CameraManagementScreen()),
+              );
+              _loadSavedCameras();
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.bug_report_outlined, color: Colors.orangeAccent),
+            title: const Text('IP Camera Test Screen', style: TextStyle(color: Colors.white70)),
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const TestScreen()),
+              );
+            },
+          ),
+          const Spacer(),
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Text(
+              'Antigravity Industrial POS System',
+              style: GoogleFonts.inter(color: Colors.white24, fontSize: 11),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildWeighingColumn() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _buildStatusHeader(),
+        const Spacer(),
+        _buildWeightDisplay(),
+        const Spacer(),
+        _buildControls(),
+      ],
+    );
+  }
+
+  Widget _buildCameraColumn() {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.black.withOpacity(0.3),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: Colors.white.withOpacity(0.05)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.2),
+            blurRadius: 20,
+            spreadRadius: 2,
+          )
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.camera_alt_outlined, color: Colors.greenAccent),
+                  const SizedBox(width: 10),
+                  Text(
+                    'VEHICLE CAMERA FEED',
+                    style: GoogleFonts.inter(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 2,
+                      color: Colors.white,
+                    ),
+                  ),
+                ],
+              ),
+              IconButton(
+                icon: const Icon(Icons.settings_outlined, color: Colors.white54, size: 20),
+                tooltip: 'Manage IP Cameras',
+                onPressed: () async {
+                  await Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const CameraManagementScreen()),
+                  );
+                  _loadSavedCameras();
+                },
+              )
+            ],
+          ),
+          const SizedBox(height: 16),
+          if (_savedCameras.isEmpty) ...[
+            Expanded(
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.videocam_off, size: 48, color: Colors.white24),
+                    const SizedBox(height: 12),
+                    Text(
+                      'No IP Cameras Available',
+                      style: GoogleFonts.inter(color: Colors.white54, fontWeight: FontWeight.w500),
+                    ),
+                    const SizedBox(height: 16),
+                    ElevatedButton.icon(
+                      onPressed: () async {
+                        await Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => const CameraManagementScreen()),
+                        );
+                        _loadSavedCameras();
+                      },
+                      icon: const Icon(Icons.add_a_photo, size: 18),
+                      label: const Text('Add Camera'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.greenAccent.shade700,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ] else ...[
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              decoration: BoxDecoration(
+                color: const Color(0xFF1A1F25),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.white.withOpacity(0.1)),
+              ),
+              child: DropdownButtonHideUnderline(
+                child: DropdownButton<CameraConfig>(
+                  isExpanded: true,
+                  dropdownColor: const Color(0xFF1A1F25),
+                  value: _selectedCamera,
+                  icon: const Icon(Icons.arrow_drop_down, color: Colors.greenAccent),
+                  items: _savedCameras.map((cam) {
+                    return DropdownMenuItem<CameraConfig>(
+                      value: cam,
+                      child: Text(
+                        '${cam.name} (${cam.ipAddress})',
+                        style: GoogleFonts.inter(fontWeight: FontWeight.w500, fontSize: 14),
+                      ),
+                    );
+                  }).toList(),
+                  onChanged: (val) {
+                    setState(() => _selectedCamera = val);
+                  },
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+            Expanded(
+              child: _selectedCamera == null
+                  ? const Center(child: Text("Please select a camera", style: TextStyle(color: Colors.white54)))
+                  : LiveCameraPlayer(
+                      key: _cameraPlayerKey,
+                      rtspUrl: _selectedCamera!.rtspUrl,
+                      cameraName: _selectedCamera!.name,
+                    ),
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: _selectedCamera == null || _isCapturingSnap ? null : _captureCameraSnap,
+              icon: _isCapturingSnap
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(color: Colors.black, strokeWidth: 2),
+                    )
+                  : const Icon(Icons.camera),
+              label: Text(
+                _isCapturingSnap ? 'SAVING SNAPSHOT...' : 'CAPTURE SNAP',
+                style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 15, letterSpacing: 1),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.greenAccent.shade700,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 20),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                elevation: 6,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatusHeader() {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -200,16 +538,16 @@ class _WeighingScreenState extends State<WeighingScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'WEIGHING BRIDGE',
+              'LIVE BRIDGE LOAD',
               style: GoogleFonts.inter(
-                fontSize: 14,
+                fontSize: 12,
                 fontWeight: FontWeight.bold,
                 letterSpacing: 4,
                 color: Colors.greenAccent.withOpacity(0.7),
               ),
             ),
             Text(
-              'System Active',
+              'Weight Active',
               style: GoogleFonts.inter(
                 fontSize: 24,
                 fontWeight: FontWeight.w900,
@@ -294,7 +632,7 @@ class _WeighingScreenState extends State<WeighingScreen> {
                 Text(
                   _currentWeight,
                   style: GoogleFonts.robotoMono(
-                    fontSize: 120,
+                    fontSize: 110,
                     fontWeight: FontWeight.w500,
                     color: Colors.greenAccent,
                     shadows: [
@@ -309,7 +647,7 @@ class _WeighingScreenState extends State<WeighingScreen> {
                 Text(
                   _unit,
                   style: GoogleFonts.inter(
-                    fontSize: 40,
+                    fontSize: 36,
                     fontWeight: FontWeight.bold,
                     color: Colors.white.withOpacity(0.5),
                   ),
