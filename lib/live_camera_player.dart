@@ -10,12 +10,16 @@ class LiveCameraPlayer extends StatefulWidget {
   final String rtspUrl;
   final String cameraName;
   final bool showHeader;
+  final bool paused;
+  final bool showPauseButton;
 
   const LiveCameraPlayer({
     super.key,
     required this.rtspUrl,
     required this.cameraName,
     this.showHeader = true,
+    this.paused = false,
+    this.showPauseButton = true,
   });
 
   @override
@@ -23,34 +27,55 @@ class LiveCameraPlayer extends StatefulWidget {
 }
 
 class LiveCameraPlayerState extends State<LiveCameraPlayer> {
-  late final Player player;
-  late final VideoController controller;
+  Player? player;
+  VideoController? controller;
   bool isInitialized = false;
   String? errorMessage;
+  bool? _localOverride; // null = follow widget.paused, true = force play, false = force pause
+
+  bool get _shouldPlay => _localOverride ?? !widget.paused;
 
   @override
   void initState() {
     super.initState();
-    _initPlayer();
+    if (_shouldPlay) {
+      _initPlayer();
+    }
   }
 
   @override
   void didUpdateWidget(LiveCameraPlayer oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.rtspUrl != widget.rtspUrl) {
+      _localOverride = null;
       _restartPlayer();
+    } else if (oldWidget.paused != widget.paused) {
+      _localOverride = null; // Sync back to parent state
+      _syncPlayerState();
+    }
+  }
+
+  Future<void> _syncPlayerState() async {
+    if (_shouldPlay) {
+      if (!isInitialized) {
+        await _initPlayer();
+      }
+    } else {
+      await _stopPlayer();
     }
   }
 
   Future<void> _initPlayer() async {
     try {
-      player = Player();
-      controller = VideoController(player);
+      final p = Player();
+      final c = VideoController(p);
 
-      await player.open(Media(widget.rtspUrl));
+      await p.open(Media(widget.rtspUrl));
 
       if (mounted) {
         setState(() {
+          player = p;
+          controller = c;
           isInitialized = true;
           errorMessage = null;
         });
@@ -64,45 +89,45 @@ class LiveCameraPlayerState extends State<LiveCameraPlayer> {
     }
   }
 
-  Future<void> _restartPlayer() async {
-    setState(() {
-      isInitialized = false;
-      errorMessage = null;
-    });
-    try {
-      await player.open(Media(widget.rtspUrl));
+  Future<void> _stopPlayer() async {
+    if (player != null) {
+      await player!.dispose();
       if (mounted) {
         setState(() {
-          isInitialized = true;
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          errorMessage = e.toString();
+          player = null;
+          controller = null;
+          isInitialized = false;
+          errorMessage = null;
         });
       }
     }
   }
 
+  Future<void> _restartPlayer() async {
+    await _stopPlayer();
+    if (_shouldPlay) {
+      await _initPlayer();
+    }
+  }
+
   @override
   void dispose() {
-    player.dispose();
+    player?.dispose();
     super.dispose();
   }
 
   /// Captures a screenshot and saves it to Application Documents directory.
   /// Returns the saved file path on success.
   Future<String> captureSnapshot() async {
-    if (!isInitialized || errorMessage != null) {
+    if (!isInitialized || errorMessage != null || player == null) {
       throw Exception("Camera stream is not active or initialized.");
     }
     final directory = await getApplicationDocumentsDirectory();
     final sanitizedName = widget.cameraName.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_');
-    final fileName = "snap_${sanitizedName}_${DateTime.now().millisecondsSinceEpoch}.png";
+    final fileName = "snap_${sanitizedName}_${DateTime.now().millisecondsSinceEpoch}.jpg";
     final path = "${directory.path}/$fileName";
 
-    final Uint8List? imageBytes = await player.screenshot(format: 'image/png');
+    final Uint8List? imageBytes = await player!.screenshot(format: 'image/jpeg');
 
     if (imageBytes != null && imageBytes.isNotEmpty) {
       final file = File(path);
@@ -194,6 +219,38 @@ class LiveCameraPlayerState extends State<LiveCameraPlayer> {
                   ),
                 ),
               ),
+            if (_shouldPlay && isInitialized && widget.showPauseButton)
+              Positioned(
+                bottom: 12,
+                right: 12,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.6),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.white.withOpacity(0.1)),
+                  ),
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(8),
+                      onTap: () {
+                        setState(() {
+                          _localOverride = false;
+                        });
+                        _syncPlayerState();
+                      },
+                      child: const Padding(
+                        padding: EdgeInsets.all(8.0),
+                        child: Icon(
+                          Icons.pause_rounded,
+                          color: Colors.white70,
+                          size: 18,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
           ],
         ),
       ),
@@ -201,6 +258,69 @@ class LiveCameraPlayerState extends State<LiveCameraPlayer> {
   }
 
   Widget _buildVideoView() {
+    if (!_shouldPlay) {
+      return InkWell(
+        onTap: () {
+          setState(() {
+            _localOverride = true;
+          });
+          _syncPlayerState();
+        },
+        child: Container(
+          decoration: const BoxDecoration(
+            gradient: RadialGradient(
+              center: Alignment.center,
+              radius: 1.2,
+              colors: [Color(0xFF232931), Color(0xFF0F1216)],
+            ),
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.greenAccent.withOpacity(0.05),
+                  border: Border.all(color: Colors.greenAccent.withOpacity(0.2), width: 1.5),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.greenAccent.withOpacity(0.1),
+                      blurRadius: 16,
+                      spreadRadius: 2,
+                    ),
+                  ],
+                ),
+                child: const Icon(
+                  Icons.play_arrow_rounded,
+                  color: Colors.greenAccent,
+                  size: 40,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                "CAMERA PAUSED",
+                style: GoogleFonts.inter(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                  letterSpacing: 2,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                "Click to stream live feed",
+                style: GoogleFonts.inter(
+                  color: Colors.white54,
+                  fontSize: 12,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     if (errorMessage != null) {
       return Center(
         child: Padding(
@@ -249,8 +369,9 @@ class LiveCameraPlayerState extends State<LiveCameraPlayer> {
     }
 
     return Video(
-      controller: controller,
+      controller: controller!,
       fit: BoxFit.cover,
+      controls: null,
     );
   }
 }

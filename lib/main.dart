@@ -500,6 +500,7 @@ class _WeighingScreenState extends State<WeighingScreen> {
                       key: _cameraPlayerKey,
                       rtspUrl: _selectedCamera!.rtspUrl,
                       cameraName: _selectedCamera!.name,
+                      showPauseButton: false,
                     ),
             ),
             const SizedBox(height: 24),

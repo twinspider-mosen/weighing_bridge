@@ -14,6 +14,7 @@ class _CameraManagementScreenState extends State<CameraManagementScreen> {
   final CameraStorageService _storageService = CameraStorageService();
   List<CameraConfig> _cameras = [];
   bool _isLoading = true;
+  bool _allStreamsPaused = true;
 
   @override
   void initState() {
@@ -187,6 +188,30 @@ class _CameraManagementScreenState extends State<CameraManagementScreen> {
         ),
         backgroundColor: const Color(0xFF1A1F25),
         actions: [
+          if (_cameras.isNotEmpty) ...[
+            ElevatedButton.icon(
+              onPressed: () {
+                setState(() {
+                  _allStreamsPaused = !_allStreamsPaused;
+                });
+              },
+              icon: Icon(
+                _allStreamsPaused ? Icons.play_arrow_rounded : Icons.pause_rounded,
+                size: 18,
+              ),
+              label: Text(
+                _allStreamsPaused ? 'STREAM ALL' : 'PAUSE ALL',
+                style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 13),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _allStreamsPaused ? Colors.greenAccent.shade700 : Colors.orangeAccent.shade700,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+            ),
+            const SizedBox(width: 16),
+          ],
           IconButton(
             icon: const Icon(Icons.add_a_photo),
             tooltip: 'Add New Camera',
@@ -286,6 +311,7 @@ class _CameraManagementScreenState extends State<CameraManagementScreen> {
                   LiveCameraPlayer(
                     rtspUrl: camera.rtspUrl,
                     cameraName: camera.name,
+                    paused: _allStreamsPaused,
                   ),
                   Positioned(
                     top: 8,

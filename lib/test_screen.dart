@@ -51,11 +51,11 @@ class _TestScreenState extends State<TestScreen> {
     try {
       final directory = await getApplicationDocumentsDirectory();
       final fileName =
-          "snapshot_${DateTime.now().millisecondsSinceEpoch}.png";
+          "snapshot_${DateTime.now().millisecondsSinceEpoch}.jpg";
       final path = "${directory.path}/$fileName";
 
       // Take a native screenshot of the video frame
-      final Uint8List? imageBytes = await player.screenshot(format: 'image/png');
+      final Uint8List? imageBytes = await player.screenshot(format: 'image/jpeg');
 
       if (imageBytes != null) {
         final file = File(path);
