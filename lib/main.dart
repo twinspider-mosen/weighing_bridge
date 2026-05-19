@@ -6,10 +6,16 @@ import 'package:weighing_bridge/test_screen.dart';
 import 'camera_service.dart';
 import 'live_camera_player.dart';
 import 'scale_service.dart';
+import 'upload_dialog.dart';
+import 'settings_service.dart';
+import 'settings_screen.dart';
+import 'logger_service.dart';
+import 'log_viewer_screen.dart';
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   MediaKit.ensureInitialized();
+  await LoggerService().init();
   runApp(const WeighingBridgeApp());
 }
 
@@ -57,12 +63,26 @@ class _WeighingScreenState extends State<WeighingScreen> {
   final GlobalKey<LiveCameraPlayerState> _cameraPlayerKey = GlobalKey<LiveCameraPlayerState>();
   bool _isCapturingSnap = false;
 
+  // Settings State
+  final SettingsService _settingsService = SettingsService();
+  bool _uploadOnCapture = true;
+
   @override
   void initState() {
     super.initState();
     _refreshPorts();
     _loadSavedCameras();
+    _loadSettings();
     _scaleService.weightStream.listen(_handleNewData);
+  }
+
+  Future<void> _loadSettings() async {
+    final value = await _settingsService.getUploadOnCapture();
+    if (mounted) {
+      setState(() {
+        _uploadOnCapture = value;
+      });
+    }
   }
 
   Future<void> _loadSavedCameras() async {
@@ -99,15 +119,29 @@ class _WeighingScreenState extends State<WeighingScreen> {
   }
 
   void _handleNewData(String data) {
-    final match = RegExp(r'([0-9]+\.[0-9]+|[0-9]+)').firstMatch(data);
-    final unitMatch = RegExp(r'(kg|lb|g)').firstMatch(data.toLowerCase());
+    final trimmedData = data.trim();
+    if (trimmedData.isEmpty) return;
+
+    // Find the number in the string
+    final match = RegExp(r'([0-9]+\.[0-9]+|[0-9]+)').firstMatch(trimmedData);
+    final unitMatch = RegExp(r'(kg|lb|g)', caseSensitive: false).firstMatch(trimmedData);
 
     setState(() {
       if (match != null) {
-        _currentWeight = match.group(0)!;
+        final rawWeight = match.group(0)!;
+        // Parse the weight as a number to eliminate leading zeros and format it nicely
+        try {
+          if (rawWeight.contains('.')) {
+            _currentWeight = double.parse(rawWeight).toStringAsFixed(2);
+          } else {
+            _currentWeight = int.parse(rawWeight).toString();
+          }
+        } catch (e) {
+          _currentWeight = rawWeight;
+        }
       }
       if (unitMatch != null) {
-        _unit = unitMatch.group(0)!;
+        _unit = unitMatch.group(0)!.toLowerCase();
       }
     });
   }
@@ -181,24 +215,12 @@ class _WeighingScreenState extends State<WeighingScreen> {
 
   Future<void> _captureCameraSnap() async {
     if (_selectedCamera == null) return;
-    setState(() => _isCapturingSnap = true);
+    
+    // 1. Capture the snapshot first while the layout and GPU textures are completely stable.
+    // This avoids thread contention between the Flutter widget paint cycle and GPU frame readback.
+    String? savedPath;
     try {
-      final savedPath = await _cameraPlayerKey.currentState?.captureSnapshot();
-      if (savedPath != null && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            backgroundColor: Colors.green.shade800,
-            content: Row(
-              children: [
-                const Icon(Icons.check_circle, color: Colors.white),
-                const SizedBox(width: 8),
-                Expanded(child: Text("Snapshot captured successfully:\n$savedPath")),
-              ],
-            ),
-            duration: const Duration(seconds: 4),
-          ),
-        );
-      }
+      savedPath = await _cameraPlayerKey.currentState?.captureSnapshot();
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -214,8 +236,45 @@ class _WeighingScreenState extends State<WeighingScreen> {
           ),
         );
       }
-    } finally {
-      setState(() => _isCapturingSnap = false);
+      return;
+    }
+
+    // 2. Process according to settings (prompt upload or direct save to gallery)
+    if (savedPath != null && mounted) {
+      setState(() => _isCapturingSnap = true);
+      try {
+        if (_uploadOnCapture) {
+          await showUploadDialog(
+            context: context,
+            imagePath: savedPath,
+            currentWeight: "$_currentWeight $_unit",
+          );
+        } else {
+          // Direct save option: skip upload dialog and show quick success notification
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              backgroundColor: Colors.teal.shade800,
+              content: Row(
+                children: [
+                  const Icon(Icons.check_circle, color: Colors.white, size: 20),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      "Snapshot successfully saved to disk:\n$savedPath",
+                      style: GoogleFonts.inter(fontWeight: FontWeight.w500),
+                    ),
+                  ),
+                ],
+              ),
+              duration: const Duration(seconds: 4),
+            ),
+          );
+        }
+      } finally {
+        if (mounted) {
+          setState(() => _isCapturingSnap = false);
+        }
+      }
     }
   }
 
@@ -228,6 +287,7 @@ class _WeighingScreenState extends State<WeighingScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      resizeToAvoidBottomInset: false,
       appBar: AppBar(
         backgroundColor: const Color(0xFF1A1F25),
         elevation: 0,
@@ -354,6 +414,29 @@ class _WeighingScreenState extends State<WeighingScreen> {
               );
             },
           ),
+          ListTile(
+            leading: const Icon(Icons.settings_outlined, color: Colors.tealAccent),
+            title: const Text('System Settings', style: TextStyle(color: Colors.white)),
+            onTap: () async {
+              Navigator.pop(context);
+              await Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const SettingsScreen()),
+              );
+              _loadSettings(); // Refresh settings state upon returning
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.receipt_long_outlined, color: Colors.greenAccent),
+            title: const Text('System Diagnostic Logs', style: TextStyle(color: Colors.white)),
+            onTap: () async {
+              Navigator.pop(context);
+              await Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const LogViewerScreen()),
+              );
+            },
+          ),
           const Spacer(),
           Padding(
             padding: const EdgeInsets.all(16.0),
@@ -464,33 +547,80 @@ class _WeighingScreenState extends State<WeighingScreen> {
               ),
             ),
           ] else ...[
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-              decoration: BoxDecoration(
-                color: const Color(0xFF1A1F25),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.white.withOpacity(0.1)),
-              ),
-              child: DropdownButtonHideUnderline(
-                child: DropdownButton<CameraConfig>(
-                  isExpanded: true,
-                  dropdownColor: const Color(0xFF1A1F25),
-                  value: _selectedCamera,
-                  icon: const Icon(Icons.arrow_drop_down, color: Colors.greenAccent),
-                  items: _savedCameras.map((cam) {
-                    return DropdownMenuItem<CameraConfig>(
-                      value: cam,
-                      child: Text(
-                        '${cam.name} (${cam.ipAddress})',
-                        style: GoogleFonts.inter(fontWeight: FontWeight.w500, fontSize: 14),
+            Row(
+              children: [
+                Expanded(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF1A1F25),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.white.withOpacity(0.1)),
+                    ),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<CameraConfig>(
+                        isExpanded: true,
+                        dropdownColor: const Color(0xFF1A1F25),
+                        value: _selectedCamera,
+                        icon: const Icon(Icons.arrow_drop_down, color: Colors.greenAccent),
+                        items: _savedCameras.map((cam) {
+                          return DropdownMenuItem<CameraConfig>(
+                            value: cam,
+                            child: Text(
+                              '${cam.name} (${cam.ipAddress})',
+                              style: GoogleFonts.inter(fontWeight: FontWeight.w500, fontSize: 14),
+                            ),
+                          );
+                        }).toList(),
+                        onChanged: (val) {
+                          setState(() => _selectedCamera = val);
+                        },
                       ),
-                    );
-                  }).toList(),
-                  onChanged: (val) {
-                    setState(() => _selectedCamera = val);
-                  },
+                    ),
+                  ),
                 ),
-              ),
+                if (_selectedCamera != null) ...[
+                  const SizedBox(width: 12),
+                  // Premium circular refresh button to force-restart stalled RTSP streams
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.tealAccent.withOpacity(0.08),
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: Colors.tealAccent.withOpacity(0.2),
+                      ),
+                    ),
+                    child: IconButton(
+                      tooltip: 'Refresh Camera Stream',
+                      icon: const Icon(Icons.refresh, color: Colors.tealAccent),
+                      onPressed: () async {
+                        // Restart the active live player stream
+                        await _cameraPlayerKey.currentState?.refreshStream();
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              backgroundColor: Colors.teal.shade800,
+                              content: Row(
+                                children: [
+                                  const Icon(Icons.sync, color: Colors.white, size: 20),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Text(
+                                      "Refreshing live stream for '${_selectedCamera!.name}'...",
+                                      style: GoogleFonts.inter(fontWeight: FontWeight.w500),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              duration: const Duration(seconds: 2),
+                            ),
+                          );
+                        }
+                      },
+                    ),
+                  ),
+                ],
+              ],
             ),
             const SizedBox(height: 24),
             Expanded(

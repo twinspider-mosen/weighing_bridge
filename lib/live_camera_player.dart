@@ -110,6 +110,11 @@ class LiveCameraPlayerState extends State<LiveCameraPlayer> {
     }
   }
 
+  /// Public method to force refresh the active media stream in case it gets stuck.
+  Future<void> refreshStream() async {
+    await _restartPlayer();
+  }
+
   @override
   void dispose() {
     player?.dispose();
