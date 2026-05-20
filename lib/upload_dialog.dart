@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:path/path.dart' as p;
 import 'api_service.dart';
+import 'logger_service.dart';
+import 'ocr_service.dart';
 
 /// Helper function to show the decoupled Upload Dialog.
 /// Can be easily attached or detached from any snapshot capture point.
@@ -45,6 +47,10 @@ class _UploadDialogState extends State<UploadDialog> {
 
   final List<String> _domains = ['imran', 'khawaja'];
 
+  bool _isOcrRunning = false;
+  OcrResult? _ocrResult;
+  String? _ocrError;
+
   @override
   void initState() {
     super.initState();
@@ -52,6 +58,54 @@ class _UploadDialogState extends State<UploadDialog> {
     // This safely avoids Flutter DropdownButton AssertionErrors when modifying list items.
     if (_domains.isNotEmpty) {
       _selectedDomain = _domains.first;
+    }
+
+    if (OcrService().isConnected) {
+      _runBackgroundOcr();
+    }
+  }
+
+  void _runBackgroundOcr() async {
+    setState(() {
+      _isOcrRunning = true;
+      _ocrError = null;
+    });
+
+    try {
+      final result = await OcrService().scanImage(widget.imagePath);
+      
+      await LoggerService().log(
+        "Background OCR complete. Raw text: '${result.rawText.replaceAll('\n', ' ')}'. "
+        "Labeled: ${result.labeledTexts}. Engine: ${result.engineUsed}."
+      );
+
+      if (mounted) {
+        setState(() {
+          _ocrResult = result;
+          // Pre-fill the subdomain text field with the detected license plate (cleaned for URL compatibility)
+          if (result.labeledTexts.containsKey("Car Number Plate")) {
+            final rawPlate = result.labeledTexts["Car Number Plate"]!;
+            // Strip out non-alphanumeric characters
+            final cleanPlate = rawPlate.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '').toLowerCase();
+            if (cleanPlate.isNotEmpty) {
+              _subdomainController.text = cleanPlate;
+            }
+          }
+        });
+      }
+    } catch (e) {
+      await LoggerService().log("Background OCR failed", e);
+      if (mounted) {
+        setState(() {
+          _ocrError = e.toString().replaceFirst("Exception: ", "").replaceFirst("StateError: ", "");
+        });
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isOcrRunning = false;
+        });
+      }
     }
   }
 
@@ -254,6 +308,142 @@ class _UploadDialogState extends State<UploadDialog> {
                     ],
                   ),
                 ),
+                if (OcrService().isConnected) ...[
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: Colors.greenAccent.withOpacity(0.02),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.greenAccent.withOpacity(0.1)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Row(
+                          children: [
+                            const Icon(
+                              Icons.psychology_outlined,
+                              color: Colors.greenAccent,
+                              size: 16,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              "AUTOMATIC AI OCR SCAN",
+                              style: GoogleFonts.inter(
+                                color: Colors.greenAccent,
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 1,
+                              ),
+                            ),
+                            const Spacer(),
+                            if (_isOcrRunning)
+                              const SizedBox(
+                                width: 12,
+                                height: 12,
+                                child: CircularProgressIndicator(
+                                  color: Colors.greenAccent,
+                                  strokeWidth: 1.5,
+                                ),
+                              )
+                            else
+                              Text(
+                                "COMPLETED",
+                                style: GoogleFonts.inter(
+                                  color: Colors.white38,
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                          ],
+                        ),
+                        if (_isOcrRunning) ...[
+                          const SizedBox(height: 12),
+                          const LinearProgressIndicator(
+                            color: Colors.greenAccent,
+                            backgroundColor: Colors.white10,
+                            minHeight: 2,
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            "Extracting structured vehicle details...",
+                            style: GoogleFonts.inter(color: Colors.white38, fontSize: 11),
+                          ),
+                        ] else if (_ocrError != null) ...[
+                          const SizedBox(height: 8),
+                          Text(
+                            "OCR Error: $_ocrError",
+                            style: GoogleFonts.inter(color: Colors.redAccent.shade100, fontSize: 11),
+                          ),
+                        ] else if (_ocrResult != null) ...[
+                          const SizedBox(height: 12),
+                          if (_ocrResult!.isBlurry) ...[
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                              margin: const EdgeInsets.only(bottom: 10),
+                              decoration: BoxDecoration(
+                                color: Colors.orangeAccent.withOpacity(0.08),
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(color: Colors.orangeAccent.withOpacity(0.2)),
+                              ),
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.blur_on, color: Colors.orangeAccent, size: 14),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      "BLURRY/HAZY TEXT DETECTED",
+                                      style: GoogleFonts.inter(
+                                        color: Colors.orangeAccent,
+                                        fontSize: 9,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                          if (_ocrResult!.labeledTexts.isEmpty)
+                            Text(
+                              "No structured vehicle details recognized.",
+                              style: GoogleFonts.inter(color: Colors.white38, fontSize: 11, fontStyle: FontStyle.italic),
+                            )
+                          else
+                            Column(
+                              children: _ocrResult!.labeledTexts.entries.map((entry) {
+                                final isPlate = entry.key.toLowerCase().contains("plate");
+                                return Padding(
+                                  padding: const EdgeInsets.only(bottom: 6.0),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text(
+                                        entry.key.toUpperCase(),
+                                        style: GoogleFonts.inter(
+                                          color: Colors.white38,
+                                          fontSize: 10,
+                                        ),
+                                      ),
+                                      Text(
+                                        entry.value,
+                                        style: GoogleFonts.robotoMono(
+                                          color: isPlate ? Colors.greenAccent : Colors.white70,
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              }).toList(),
+                            ),
+                        ]
+                      ],
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 24),
 
                 // Input fields

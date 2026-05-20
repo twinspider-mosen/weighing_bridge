@@ -41,10 +41,15 @@ class _CameraManagementScreenState extends State<CameraManagementScreen> {
       builder: (context) {
         return AlertDialog(
           backgroundColor: const Color(0xFF1A1F25),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
           title: Text(
             'Add IP Camera',
-            style: GoogleFonts.inter(fontWeight: FontWeight.bold, color: Colors.white),
+            style: GoogleFonts.inter(
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
           ),
           content: Form(
             key: formKey,
@@ -60,14 +65,17 @@ class _CameraManagementScreenState extends State<CameraManagementScreen> {
                       labelStyle: const TextStyle(color: Colors.white54),
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: Colors.white.withOpacity(0.1)),
+                        borderSide: BorderSide(
+                          color: Colors.white.withOpacity(0.1),
+                        ),
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                         borderSide: const BorderSide(color: Colors.greenAccent),
                       ),
                     ),
-                    validator: (val) => (val == null || val.trim().isEmpty) ? 'Required' : null,
+                    validator: (val) =>
+                        (val == null || val.trim().isEmpty) ? 'Required' : null,
                   ),
                   const SizedBox(height: 16),
                   TextFormField(
@@ -80,19 +88,25 @@ class _CameraManagementScreenState extends State<CameraManagementScreen> {
                       labelStyle: const TextStyle(color: Colors.white54),
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: Colors.white.withOpacity(0.1)),
+                        borderSide: BorderSide(
+                          color: Colors.white.withOpacity(0.1),
+                        ),
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                         borderSide: const BorderSide(color: Colors.greenAccent),
                       ),
                     ),
-                    validator: (val) => (val == null || val.trim().isEmpty) ? 'Required' : null,
+                    validator: (val) =>
+                        (val == null || val.trim().isEmpty) ? 'Required' : null,
                   ),
                   const SizedBox(height: 12),
                   Text(
                     'Tip: Enter an IP like 192.168.0.31 to automatically configure standard Dahua/Hikvision RTSP stream, or enter full rtsp:// URL.',
-                    style: GoogleFonts.inter(fontSize: 11, color: Colors.white54),
+                    style: GoogleFonts.inter(
+                      fontSize: 11,
+                      color: Colors.white54,
+                    ),
                   ),
                 ],
               ),
@@ -101,7 +115,10 @@ class _CameraManagementScreenState extends State<CameraManagementScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancel', style: TextStyle(color: Colors.white54)),
+              child: const Text(
+                'Cancel',
+                style: TextStyle(color: Colors.white54),
+              ),
             ),
             ElevatedButton(
               onPressed: () async {
@@ -111,8 +128,10 @@ class _CameraManagementScreenState extends State<CameraManagementScreen> {
                   String rtspUrl = ipInput;
                   String ipAddress = ipInput;
 
-                  if (!rtspUrl.startsWith('rtsp://') && !rtspUrl.startsWith('http://')) {
-                    rtspUrl = "rtsp://admin:admin%4012345@$ipInput:554/cam/realmonitor?channel=1&subtype=0";
+                  if (!rtspUrl.startsWith('rtsp://') &&
+                      !rtspUrl.startsWith('http://')) {
+                    rtspUrl =
+                        "rtsp://admin:admin%4012345@$ipInput:554/cam/realmonitor?channel=1&subtype=1";
                   } else {
                     // Extract IP for friendly display if possible
                     final uri = Uri.tryParse(rtspUrl);
@@ -138,7 +157,9 @@ class _CameraManagementScreenState extends State<CameraManagementScreen> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.greenAccent.shade700,
                 foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
               ),
               child: const Text('Add Camera'),
             ),
@@ -153,7 +174,10 @@ class _CameraManagementScreenState extends State<CameraManagementScreen> {
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: const Color(0xFF1A1F25),
-        title: const Text('Remove Camera?', style: TextStyle(color: Colors.white)),
+        title: const Text(
+          'Remove Camera?',
+          style: TextStyle(color: Colors.white),
+        ),
         content: Text(
           'Are you sure you want to remove "${camera.name}"?',
           style: const TextStyle(color: Colors.white70),
@@ -161,7 +185,10 @@ class _CameraManagementScreenState extends State<CameraManagementScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel', style: TextStyle(color: Colors.white54)),
+            child: const Text(
+              'Cancel',
+              style: TextStyle(color: Colors.white54),
+            ),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
@@ -196,18 +223,30 @@ class _CameraManagementScreenState extends State<CameraManagementScreen> {
                 });
               },
               icon: Icon(
-                _allStreamsPaused ? Icons.play_arrow_rounded : Icons.pause_rounded,
+                _allStreamsPaused
+                    ? Icons.play_arrow_rounded
+                    : Icons.pause_rounded,
                 size: 18,
               ),
               label: Text(
                 _allStreamsPaused ? 'STREAM ALL' : 'PAUSE ALL',
-                style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 13),
+                style: GoogleFonts.inter(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 13,
+                ),
               ),
               style: ElevatedButton.styleFrom(
-                backgroundColor: _allStreamsPaused ? Colors.greenAccent.shade700 : Colors.orangeAccent.shade700,
+                backgroundColor: _allStreamsPaused
+                    ? Colors.greenAccent.shade700
+                    : Colors.orangeAccent.shade700,
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
             ),
             const SizedBox(width: 16),
@@ -229,10 +268,12 @@ class _CameraManagementScreenState extends State<CameraManagementScreen> {
           ),
         ),
         child: _isLoading
-            ? const Center(child: CircularProgressIndicator(color: Colors.greenAccent))
+            ? const Center(
+                child: CircularProgressIndicator(color: Colors.greenAccent),
+              )
             : _cameras.isEmpty
-                ? _buildEmptyState()
-                : _buildGrid(),
+            ? _buildEmptyState()
+            : _buildGrid(),
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _showAddCameraDialog,
@@ -249,11 +290,19 @@ class _CameraManagementScreenState extends State<CameraManagementScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.videocam_off_outlined, size: 80, color: Colors.white.withOpacity(0.2)),
+          Icon(
+            Icons.videocam_off_outlined,
+            size: 80,
+            color: Colors.white.withOpacity(0.2),
+          ),
           const SizedBox(height: 16),
           Text(
             'No IP Cameras Added Yet',
-            style: GoogleFonts.inter(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white70),
+            style: GoogleFonts.inter(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: Colors.white70,
+            ),
           ),
           const SizedBox(height: 8),
           Text(
@@ -269,7 +318,9 @@ class _CameraManagementScreenState extends State<CameraManagementScreen> {
               backgroundColor: Colors.greenAccent.shade700,
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
           ),
         ],
@@ -313,6 +364,53 @@ class _CameraManagementScreenState extends State<CameraManagementScreen> {
                     cameraName: camera.name,
                     paused: _allStreamsPaused,
                   ),
+                  // RTSP URL label at the bottom of each card
+                  Positioned(
+                    bottom: 0,
+                    left: 0,
+                    right: 0,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.bottomCenter,
+                          end: Alignment.topCenter,
+                          colors: [
+                            Colors.black.withOpacity(0.85),
+                            Colors.transparent,
+                          ],
+                        ),
+                        borderRadius: const BorderRadius.only(
+                          bottomLeft: Radius.circular(16),
+                          bottomRight: Radius.circular(16),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(
+                            Icons.link,
+                            color: Colors.tealAccent,
+                            size: 12,
+                          ),
+                          const SizedBox(width: 6),
+                          // Expanded(
+                          //   child: SelectableText(
+                          //     camera.rtspUrl,
+                          //     style: GoogleFonts.robotoMono(
+                          //       color: Colors.tealAccent.withOpacity(0.85),
+                          //       fontSize: 10,
+                          //       letterSpacing: 0.3,
+                          //     ),
+                          //     maxLines: 1,
+                          //   ),
+                          // ),
+                        ],
+                      ),
+                    ),
+                  ),
                   Positioned(
                     top: 8,
                     right: 8,
@@ -322,7 +420,11 @@ class _CameraManagementScreenState extends State<CameraManagementScreen> {
                         shape: BoxShape.circle,
                       ),
                       child: IconButton(
-                        icon: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 20),
+                        icon: const Icon(
+                          Icons.delete_outline,
+                          color: Colors.redAccent,
+                          size: 20,
+                        ),
                         tooltip: 'Remove Camera',
                         onPressed: () => _deleteCamera(camera),
                       ),

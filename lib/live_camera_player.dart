@@ -1,6 +1,8 @@
 import 'dart:io';
+import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
@@ -13,6 +15,9 @@ class LiveCameraPlayer extends StatefulWidget {
   final bool paused;
   final bool showPauseButton;
 
+  /// Called whenever the zoom level changes (pinch, programmatic, etc.)
+  final ValueChanged<double>? onZoomChanged;
+
   const LiveCameraPlayer({
     super.key,
     required this.rtspUrl,
@@ -20,6 +25,7 @@ class LiveCameraPlayer extends StatefulWidget {
     this.showHeader = true,
     this.paused = false,
     this.showPauseButton = true,
+    this.onZoomChanged,
   });
 
   @override
@@ -32,14 +38,33 @@ class LiveCameraPlayerState extends State<LiveCameraPlayer> {
   bool isInitialized = false;
   String? errorMessage;
   bool? _localOverride; // null = follow widget.paused, true = force play, false = force pause
+  
+  final TransformationController _transformationController = TransformationController();
+  double _zoomLevel = 1.0;
+  Size _viewportSize = Size.zero;
+
+  /// Key attached to the RepaintBoundary that wraps the live video view.
+  /// Used by captureSnapshot() to render exactly what the operator sees.
+  final GlobalKey _repaintKey = GlobalKey();
 
   bool get _shouldPlay => _localOverride ?? !widget.paused;
 
   @override
   void initState() {
     super.initState();
+    _transformationController.addListener(_onTransformationChanged);
     if (_shouldPlay) {
       _initPlayer();
+    }
+  }
+
+  void _onTransformationChanged() {
+    final double scale = _transformationController.value.getMaxScaleOnAxis();
+    if ((scale - _zoomLevel).abs() > 0.01) {
+      setState(() {
+        _zoomLevel = scale;
+      });
+      widget.onZoomChanged?.call(scale);
     }
   }
 
@@ -117,30 +142,97 @@ class LiveCameraPlayerState extends State<LiveCameraPlayer> {
 
   @override
   void dispose() {
+    _transformationController.removeListener(_onTransformationChanged);
+    _transformationController.dispose();
     player?.dispose();
     super.dispose();
   }
 
-  /// Captures a screenshot and saves it to Application Documents directory.
-  /// Returns the saved file path on success.
+  /// Public: zoom in by 0.5x steps, up to 10x
+  void zoomIn() {
+    final double nextZoom = (_zoomLevel + 0.5).clamp(1.0, 10.0);
+    _applyZoom(nextZoom);
+  }
+
+  /// Public: zoom out by 0.5x steps, down to 1x
+  void zoomOut() {
+    final double nextZoom = (_zoomLevel - 0.5).clamp(1.0, 10.0);
+    _applyZoom(nextZoom);
+  }
+
+  /// Public: reset zoom to 1x immediately
+  void resetZoom() {
+    _applyZoom(1.0);
+  }
+
+  void _applyZoom(double targetZoom) {
+    setState(() {
+      _zoomLevel = targetZoom;
+      if (targetZoom <= 1.01) {
+        _transformationController.value = Matrix4.identity();
+      } else {
+        final double centerX = _viewportSize.width / 2;
+        final double centerY = _viewportSize.height / 2;
+        
+        final Matrix4 matrix = Matrix4.identity()
+          ..translate(centerX, centerY)
+          ..scale(targetZoom)
+          ..translate(-centerX, -centerY);
+        
+        _transformationController.value = matrix;
+      }
+    });
+    widget.onZoomChanged?.call(_zoomLevel);
+  }
+
+
+
+  /// Captures exactly what the operator sees (zoomed / panned view).
+  /// Uses the RepaintBoundary render pipeline as primary method so the
+  /// InteractiveViewer transform is baked into the image.
+  /// Falls back to the raw player frame if the boundary render fails.
   Future<String> captureSnapshot() async {
     if (!isInitialized || errorMessage != null || player == null) {
       throw Exception("Camera stream is not active or initialized.");
     }
+
     final directory = await getApplicationDocumentsDirectory();
     final sanitizedName = widget.cameraName.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_');
-    final fileName = "snap_${sanitizedName}_${DateTime.now().millisecondsSinceEpoch}.jpg";
-    final path = "${directory.path}/$fileName";
+    final timestamp   = DateTime.now().millisecondsSinceEpoch;
 
-    final Uint8List? imageBytes = await player!.screenshot(format: 'image/jpeg');
+    // ── Primary: render the zoomed widget view ────────────────────────────
+    try {
+      final RenderRepaintBoundary? boundary =
+          _repaintKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
+
+      if (boundary != null) {
+        // pixelRatio 2.0 doubles resolution for crisp output on desktop
+        final ui.Image image = await boundary.toImage(pixelRatio: 2.0);
+        final ByteData? byteData =
+            await image.toByteData(format: ui.ImageByteFormat.png);
+        image.dispose();
+
+        if (byteData != null) {
+          final pngPath = "${directory.path}/snap_${sanitizedName}_$timestamp.png";
+          await File(pngPath).writeAsBytes(byteData.buffer.asUint8List());
+          return pngPath;
+        }
+      }
+    } catch (_) {
+      // boundary render failed — fall through to raw player screenshot
+    }
+
+    // ── Fallback: raw unzoomed frame from the media decoder ───────────────
+    final Uint8List? imageBytes =
+        await player!.screenshot(format: 'image/jpeg');
 
     if (imageBytes != null && imageBytes.isNotEmpty) {
-      final file = File(path);
-      await file.writeAsBytes(imageBytes);
-      return path;
-    } else {
-      throw Exception("Failed to acquire video frame from stream.");
+      final jpgPath = "${directory.path}/snap_${sanitizedName}_$timestamp.jpg";
+      await File(jpgPath).writeAsBytes(imageBytes);
+      return jpgPath;
     }
+
+    throw Exception("Failed to acquire video frame from stream.");
   }
 
   @override
@@ -160,103 +252,110 @@ class LiveCameraPlayerState extends State<LiveCameraPlayer> {
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(16),
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            _buildVideoView(),
-            if (widget.showHeader)
-              Positioned(
-                top: 0,
-                left: 0,
-                right: 0,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [
-                        Colors.black.withOpacity(0.8),
-                        Colors.transparent,
-                      ],
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 8,
-                        height: 8,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: errorMessage == null && isInitialized
-                              ? Colors.greenAccent
-                              : Colors.redAccent,
-                          boxShadow: [
-                            BoxShadow(
-                              color: errorMessage == null && isInitialized
-                                  ? Colors.greenAccent
-                                  : Colors.redAccent,
-                              blurRadius: 8,
-                            ),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            // Store the viewport size so public zoomIn/zoomOut can centre correctly
+            _viewportSize = Size(constraints.maxWidth, constraints.maxHeight);
+            return Stack(
+              fit: StackFit.expand,
+              children: [
+                _buildVideoView(),
+                
+                if (widget.showHeader)
+                  Positioned(
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            Colors.black.withOpacity(0.8),
+                            Colors.transparent,
                           ],
                         ),
                       ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          widget.cameraName,
-                          style: GoogleFonts.inter(
-                            color: Colors.white,
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                            shadows: [
-                              const Shadow(
-                                color: Colors.black,
-                                blurRadius: 4,
-                              )
-                            ],
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 8,
+                            height: 8,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: errorMessage == null && isInitialized
+                                  ? Colors.greenAccent
+                                  : Colors.redAccent,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: errorMessage == null && isInitialized
+                                      ? Colors.greenAccent
+                                      : Colors.redAccent,
+                                  blurRadius: 8,
+                                ),
+                              ],
+                            ),
                           ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              widget.cameraName,
+                              style: GoogleFonts.inter(
+                                color: Colors.white,
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                                shadows: [
+                                  const Shadow(
+                                    color: Colors.black,
+                                    blurRadius: 4,
+                                  )
+                                ],
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
                       ),
-                    ],
+                    ),
                   ),
-                ),
-              ),
-            if (_shouldPlay && isInitialized && widget.showPauseButton)
-              Positioned(
-                bottom: 12,
-                right: 12,
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.6),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.white.withOpacity(0.1)),
-                  ),
-                  child: Material(
-                    color: Colors.transparent,
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(8),
-                      onTap: () {
-                        setState(() {
-                          _localOverride = false;
-                        });
-                        _syncPlayerState();
-                      },
-                      child: const Padding(
-                        padding: EdgeInsets.all(8.0),
-                        child: Icon(
-                          Icons.pause_rounded,
-                          color: Colors.white70,
-                          size: 18,
+                if (_shouldPlay && isInitialized && widget.showPauseButton)
+                  Positioned(
+                    bottom: 12,
+                    right: 12,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.black.withOpacity(0.6),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.white.withOpacity(0.1)),
+                      ),
+                      child: Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(8),
+                          onTap: () {
+                            setState(() {
+                              _localOverride = false;
+                            });
+                            _syncPlayerState();
+                          },
+                          child: const Padding(
+                            padding: EdgeInsets.all(8.0),
+                            child: Icon(
+                              Icons.pause_rounded,
+                              color: Colors.white70,
+                              size: 18,
+                            ),
+                          ),
                         ),
                       ),
                     ),
                   ),
-                ),
-              ),
-          ],
+              ],
+            );
+          },
         ),
       ),
     );
@@ -373,10 +472,25 @@ class LiveCameraPlayerState extends State<LiveCameraPlayer> {
       );
     }
 
-    return Video(
-      controller: controller!,
-      fit: BoxFit.cover,
-      controls: null,
+    // RepaintBoundary lets captureSnapshot() render exactly what is on screen,
+    // including the current zoom / pan transform from InteractiveViewer.
+    return RepaintBoundary(
+      key: _repaintKey,
+      child: ClipRect(
+        child: InteractiveViewer(
+          transformationController: _transformationController,
+          maxScale: 10.0,
+          minScale: 1.0,
+          boundaryMargin: EdgeInsets.zero,
+          panEnabled: _zoomLevel > 1.01,
+          scaleEnabled: true,
+          child: Video(
+            controller: controller!,
+            fit: BoxFit.cover,
+            controls: null,
+          ),
+        ),
+      ),
     );
   }
 }
