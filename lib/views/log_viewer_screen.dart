@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'logger_service.dart';
+import 'package:weighing_bridge/services/logger_service.dart';
 
 /// A premium, custom-styled Log Viewer Screen to view and manage system error logs.
 class LogViewerScreen extends StatefulWidget {

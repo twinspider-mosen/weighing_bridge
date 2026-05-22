@@ -25,7 +25,8 @@ class ApiService {
   /// [weight] - The active scale reading text (e.g., "124.50 kg")
   /// [imagePath] - Absolute path of the captured JPEG snapshot on disk
   Future<Response> uploadScreenshot({
-    required String domain,
+    required String requestID,
+     required String scaleId,
     required String subdomain,
     required String weight,
     required String imagePath,
@@ -38,15 +39,20 @@ class ApiService {
 
     // Build the multipart Form Data with exact keys: subdomain, domain, weight, and snap.
     final FormData formData = FormData.fromMap({
+
       'subdomain': subdomain.trim(),
-      'domain': domain.trim(),
-      'weight': weight.trim(),
-      'snap': await MultipartFile.fromFile(
+      'request_id':requestID ,
+     'scale_id': scaleId,
+
+      'weight': weight,
+      'image': await MultipartFile.fromFile(
         file.path,
         filename: p.basename(file.path),
       ),
     });
-
+print("Form Data = ${formData.fields}");
+return Response(requestOptions: RequestOptions(data: formData
+));
     // Execute the POST request to the fixed uploadUrl
     return await _dio.post(
       uploadUrl,

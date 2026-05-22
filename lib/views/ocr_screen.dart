@@ -5,7 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:path/path.dart' as p;
-import 'ocr_service.dart';
+import '../services/ocr_service.dart';
 
 class OcrScreen extends StatefulWidget {
   const OcrScreen({super.key});
