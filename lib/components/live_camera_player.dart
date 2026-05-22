@@ -41,6 +41,7 @@ class LiveCameraPlayerState extends State<LiveCameraPlayer> {
   
   final TransformationController _transformationController = TransformationController();
   double _zoomLevel = 1.0;
+  double get zoom => _zoomLevel;
   Size _viewportSize = Size.zero;
 
   /// Key attached to the RepaintBoundary that wraps the live video view.

@@ -45,6 +45,8 @@ dependencies:
   dio: ^5.9.2
   path: ^1.9.1
   file_picker: ^8.1.2
+  firebase_core: ^4.9.0
+  cloud_firestore: ^6.4.1
 
 dev_dependencies:
   flutter_test:

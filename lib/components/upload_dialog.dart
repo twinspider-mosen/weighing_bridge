@@ -2,9 +2,9 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:path/path.dart' as p;
-import 'api_service.dart';
-import 'logger_service.dart';
-import 'ocr_service.dart';
+import '../services/api_service.dart';
+import '../services/logger_service.dart';
+import '../services/ocr_service.dart';
 
 /// Helper function to show the decoupled Upload Dialog.
 /// Can be easily attached or detached from any snapshot capture point.
@@ -12,12 +12,15 @@ Future<void> showUploadDialog({
   required BuildContext context,
   required String imagePath,
   required String currentWeight,
+  required String requestID,
+  required String scaleID,
+  required String subdomain,
 }) async {
   return showDialog<void>(
     context: context,
     barrierDismissible: false,
     builder: (BuildContext context) {
-      return UploadDialog(imagePath: imagePath, currentWeight: currentWeight);
+      return UploadDialog(imagePath: imagePath, currentWeight: currentWeight, requestID: requestID, scaleID: scaleID, subdomain: subdomain);
     },
   );
 }
@@ -25,11 +28,19 @@ Future<void> showUploadDialog({
 class UploadDialog extends StatefulWidget {
   final String imagePath;
   final String currentWeight;
+  final String requestID;
+  final String scaleID;
+  final String subdomain;
+
 
   const UploadDialog({
     super.key,
     required this.imagePath,
     required this.currentWeight,
+    required this.requestID,
+    required this.scaleID,
+    required this.subdomain,
+
   });
 
   @override
@@ -39,13 +50,10 @@ class UploadDialog extends StatefulWidget {
 class _UploadDialogState extends State<UploadDialog> {
   final ApiService _apiService = ApiService();
   final _formKey = GlobalKey<FormState>();
-  final _subdomainController = TextEditingController();
 
-  String? _selectedDomain;
   bool _isUploading = false;
   String? _errorMessage;
 
-  final List<String> _domains = ['imran', 'khawaja'];
 
   bool _isOcrRunning = false;
   OcrResult? _ocrResult;
@@ -56,9 +64,7 @@ class _UploadDialogState extends State<UploadDialog> {
     super.initState();
     // Dynamically initialize selectedDomain to the first available option in the domain list.
     // This safely avoids Flutter DropdownButton AssertionErrors when modifying list items.
-    if (_domains.isNotEmpty) {
-      _selectedDomain = _domains.first;
-    }
+   
 
     if (OcrService().isConnected) {
       _runBackgroundOcr();
@@ -88,7 +94,7 @@ class _UploadDialogState extends State<UploadDialog> {
             // Strip out non-alphanumeric characters
             final cleanPlate = rawPlate.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '').toLowerCase();
             if (cleanPlate.isNotEmpty) {
-              _subdomainController.text = cleanPlate;
+              // vehicle number plate will be handled here
             }
           }
         });
@@ -109,11 +115,6 @@ class _UploadDialogState extends State<UploadDialog> {
     }
   }
 
-  @override
-  void dispose() {
-    _subdomainController.dispose();
-    super.dispose();
-  }
 
   Future<void> _handleUpload() async {
     if (!_formKey.currentState!.validate()) return;
@@ -125,10 +126,10 @@ class _UploadDialogState extends State<UploadDialog> {
 
     try {
       await _apiService.uploadScreenshot(
-        domain: _selectedDomain ?? '',
-        subdomain: _subdomainController.text,
+        requestID: widget.requestID,
+        subdomain: widget.subdomain,
         weight: widget.currentWeight,
-        imagePath: widget.imagePath,
+        imagePath: widget.imagePath, scaleId: widget.scaleID,
       );
 
       if (mounted) {
@@ -142,8 +143,8 @@ class _UploadDialogState extends State<UploadDialog> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
-                    "Snapshot and weight uploaded successfully!\nURL: https://${_subdomainController.text}.${_selectedDomain ?? ''}",
-                    style: GoogleFonts.inter(fontWeight: FontWeight.w500),
+                    "Snapshot and weight uploaded successfully!}",
+                    style: GoogleFonts.inter(fontWeight: FontWeight.w500, color: Colors.white),
                   ),
                 ),
               ],
@@ -458,46 +459,7 @@ class _UploadDialogState extends State<UploadDialog> {
                 ),
                 const SizedBox(height: 10),
 
-                DropdownButtonFormField<String>(
-                  value: _selectedDomain,
-                  onChanged: _isUploading
-                      ? null
-                      : (val) {
-                          if (val != null) {
-                            setState(() => _selectedDomain = val);
-                          }
-                        },
-                  dropdownColor: const Color(0xFF1A1F25),
-                  style: GoogleFonts.inter(color: Colors.white, fontSize: 14),
-                  decoration: InputDecoration(
-                    labelText: "Select Domain",
-                    labelStyle: const TextStyle(color: Colors.white54),
-                    prefixIcon: const Icon(
-                      Icons.language_outlined,
-                      color: Colors.white38,
-                      size: 18,
-                    ),
-                    filled: true,
-                    fillColor: Colors.white.withOpacity(0.01),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(
-                        color: Colors.white.withOpacity(0.1),
-                      ),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Colors.greenAccent),
-                    ),
-                  ),
-                  items: _domains.map((domain) {
-                    return DropdownMenuItem<String>(
-                      value: domain,
-                      child: Text(domain),
-                    );
-                  }).toList(),
-                ),
-                const SizedBox(height: 24),
+        
 
                 // Error message banner
                 if (_errorMessage != null) ...[
