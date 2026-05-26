@@ -5,6 +5,7 @@ import 'package:weighing_bridge/views/log_viewer_screen.dart';
 import 'package:weighing_bridge/views/ocr_screen.dart';
 import 'package:weighing_bridge/views/settings_screen.dart';
 import 'package:weighing_bridge/test_screen.dart';
+import 'package:weighing_bridge/views/tflite_detection_screen.dart';
 
 class WeighingDrawer extends StatelessWidget {
   final VoidCallback? onCamerasUpdated;
@@ -110,6 +111,23 @@ class WeighingDrawer extends StatelessWidget {
               await Navigator.push(
                 context,
                 MaterialPageRoute(builder: (context) => const OcrScreen()),
+              );
+            },
+          ),
+          ListTile(
+            leading: const Icon(
+              Icons.filter_center_focus_outlined,
+              color: Colors.cyanAccent,
+            ),
+            title: const Text(
+              'TFLite Plate Detection',
+              style: TextStyle(color: Colors.white),
+            ),
+            onTap: () async {
+              Navigator.pop(context);
+              await Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const TfliteDetectionScreen()),
               );
             },
           ),

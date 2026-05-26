@@ -1,3 +1,4 @@
+import 'dart:developer';
 import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:path/path.dart' as p;
@@ -8,14 +9,14 @@ import 'package:path/path.dart' as p;
 class ApiService {
   final Dio _dio = Dio(
     BaseOptions(
-      connectTimeout: const Duration(seconds: 10),
-      receiveTimeout: const Duration(seconds: 10),
+      connectTimeout: const Duration(seconds: 30),
+      receiveTimeout: const Duration(seconds: 30),
     ),
   );
 
   // The fixed API endpoint URL for screenshot and weight uploads.
   // This can be easily changed here to target your exact production server API.
-  static const String uploadUrl = 'https://api.weighbridge.com/upload';
+  static const String uploadUrl = 'https://5539-39-56-75-123.ngrok-free.app/api/v1/scales/submit_data';
 
   /// Uploads a camera snapshot and current scale weight data to the fixed
   /// API endpoint, passing the selected domain, subdomain, weight, and image inside FormData.
@@ -41,9 +42,8 @@ class ApiService {
     final FormData formData = FormData.fromMap({
 
       'subdomain': subdomain.trim(),
-      'request_id':requestID ,
-     'scale_id': scaleId,
-
+      'request_id':requestID,
+      'scale_id': scaleId,
       'weight': weight,
       'image': await MultipartFile.fromFile(
         file.path,
@@ -51,19 +51,24 @@ class ApiService {
       ),
     });
 print("Form Data = ${formData.fields}");
-return Response(requestOptions: RequestOptions(data: formData
-));
+// return Response(requestOptions: RequestOptions(data: formData
+// ));
     // Execute the POST request to the fixed uploadUrl
-    return await _dio.post(
+  try {
+      return await _dio.post(
       uploadUrl,
       data: formData,
       options: Options(
         headers: {
-          'Accept': 'application/json',
-          'User-Agent': 'WeighingBridgeClient/2.0',
+        
         },
       ),
     );
+    
+  } catch (e) {
+    log("Error on posting data to server: ${e.toString()}");
+    return Response(requestOptions: RequestOptions(data: 'null'))
+;  }
   }
 }
 

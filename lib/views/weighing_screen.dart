@@ -62,13 +62,64 @@ String? _lastCommandId;
    initStream(); 
   }
 
-  initStream()async{
-     final details = await HelperFunctions.getSystemDetails();
+  // initStream()async{
+  //    final details = await HelperFunctions.getSystemDetails();
+
+  // _commandSubscription = FirebaseService.getCommandStream(
+  //   scaleID: details['scale_id'] ?? '',
+  //   subdomain: details['subdomain'] ?? '',
+  // ).listen(_handleCommandStream);
+  // }
+
+
+Future<void> initStream() async {
+  final details = await HelperFunctions.getSystemDetails();
 
   _commandSubscription = FirebaseService.getCommandStream(
     scaleID: details['scale_id'] ?? '',
-  ).listen(_handleCommandStream);
-  }
+    subdomains: details['subdomains'] ?? [],
+  ).listen((snapshot) async {
+
+    for (final change in snapshot.docChanges) {
+
+      // ONLY react to newly added docs
+      if (change.type == DocumentChangeType.added) {
+
+        final command = CommandModel.fromMap(change.doc.data()!);
+
+        print("NEW COMMAND RECEIVED");
+        print(command.requestID);
+
+        // prevent duplicates
+        // if (_lastCommandId == command.requestID) {
+        //   print("Duplicate ignored");
+        //   return;
+        // }
+
+        _lastCommandId = command.requestID;
+
+        await CameraCaptureService.captureAndHandle(
+          context: context,
+          autoUpload: true,
+          cameraPlayerKey: _cameraPlayerKey,
+          uploadOnCapture: _uploadOnCapture,
+          currentWeight: _currentWeight,
+          unit: _unit,
+          scaleID: command.scaleId,
+          requestID: command.requestID,
+          subdomain: command.subdomain,
+          onLoadingChanged: (loading) {
+            if (mounted) {
+              setState(() {
+                _isCapturingSnap = loading;
+              });
+            }
+          },
+        );
+      }
+    }
+  });
+}
 
 
 Future<void> _handleCommandStream(dynamic snapshot) async {
@@ -258,7 +309,9 @@ void dispose() {
                 ),
               ],
             ),
-            actions: [ActionButton(label: "Add an Entry", color: Colors.greenAccent, isPrimary: false, onPressed: FirebaseService.addNewEntry,)],
+            actions: [
+              // ActionButton(label: "Add an Entry", color: Colors.greenAccent, isPrimary: false, onPressed: FirebaseService.addNewEntry,)
+              ],
           ),
           drawer: WeighingDrawer(
             onCamerasUpdated: _loadSavedCameras,
@@ -273,9 +326,10 @@ void dispose() {
               return StreamBuilder(
                 stream: FirebaseService.getCommandStream(
                   scaleID: snap.data!['scale_id'] ?? '',
+                  subdomains: snap.data!['subdomains'] ?? [],
                 ),
                 builder: (context, snapshot) {
-                  print(snapshot.data?.docs);
+                  // print(snapshot.data?.docs.toList().first.data());
                   print(snapshot.data?.docs);
                   // print("snapshot data"+snapshot.data?.docs);
                   if (!snapshot.hasData || snapshot.hasError) {

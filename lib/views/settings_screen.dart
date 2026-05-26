@@ -63,8 +63,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
-
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -121,20 +119,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                 ),
                               ),
                               FutureBuilder(
-                                future:HelperFunctions.getSystemDetails(),
+                                future: HelperFunctions.getSystemDetails(),
                                 builder: (context, snapshot) {
-                                  if(!snapshot.hasData || snapshot.hasError){
+                                  if (!snapshot.hasData || snapshot.hasError) {
                                     return SizedBox();
                                   }
                                   return Text(
-                                    'Name: ${snapshot.data!['scale_id']}      |      Subdomain: ${snapshot.data!['subdomain ']}',
+                                    'Name: ${snapshot.data!['scale_id']}      |      Subdomain: ${snapshot.data!['subdomains']}',
                                     style: TextStyle(
                                       color: Colors.grey,
                                       fontWeight: FontWeight.w400,
                                       fontSize: 12,
                                     ),
                                   );
-                                }
+                                },
                               ),
                             ],
                           ),
@@ -143,65 +141,277 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             icon: Icons.edit,
                             color: Colors.greenAccent,
                             onPressed: () async {
-                              showDialog(
-                                context: context,
-                                builder: (_) {
-                                  bool isLoading = false;
-                                  final TextEditingController
-                                  nameController = TextEditingController(),
-                                  domainController = TextEditingController();
-                                  return StatefulBuilder(
-                                    builder: (context, setState) {
-                                      return AlertDialog(
-                                        title: Text('System Details'),
-                                        content: Column(
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.end,
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.end,
-                                          spacing: 12,
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            CustomTextField(
-                                              controller: domainController,
-                                              labelText: "Subdomain",
-                                            ),
-                                            CustomTextField(
-                                              controller: nameController,
-                                              labelText: "Scale ID",
-                                            ),
-                                            ActionButton(
-                                              label: 'Update',
-                                              color: Colors.green,
-                                              isPrimary: true,
-                                              onPressed: () async {
-                                                setState(() {
-                                                  isLoading = true;
-                                                });
-                                                var pref =
-                                                    await SharedPreferences.getInstance();
-                                                pref.setString(
-                                                  'subdomain',
-                                                  domainController.text,
-                                                );
-                                                pref.setString(
-                                                  'scale_id',
-                                                  nameController.text,
-                                                );
-                                                setState(() {
-                                                  isLoading = true;
-                                                });
-                                                Navigator.pop(context, true);
-                                              },
-                                            ),
-                                          ],
+  bool isLoading = false;
+
+  final TextEditingController nameController =
+      TextEditingController();
+
+  final TextEditingController subdomainController =
+      TextEditingController();
+
+  final pref = await SharedPreferences.getInstance();
+
+  nameController.text =
+      pref.getString('scale_id') ?? '';
+
+  List<String> subdomains =
+      pref.getStringList('subdomains') ?? [];
+
+  final result = await showDialog(
+    context: context,
+    builder: (_) {
+      return StatefulBuilder(
+        builder: (context, setState) {
+          return AlertDialog(
+            backgroundColor: const Color(0xFF1A1F25),
+
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
+
+            title: Text(
+              'System Details',
+              style: GoogleFonts.inter(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+
+            content: SizedBox(
+              width: 500,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment:
+                    CrossAxisAlignment.start,
+                children: [
+
+                  /// SCALE ID
+                  CustomTextField(
+                    controller: nameController,
+                    labelText: "Scale ID",
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  /// ADD SUBDOMAIN
+                  Text(
+                    "Subdomains",
+                    style: GoogleFonts.inter(
+                      color: Colors.white70,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+
+                  const SizedBox(height: 10),
+
+                  Row(
+                    children: [
+                      Expanded(
+                        child: CustomTextField(
+                          controller:
+                              subdomainController,
+                          labelText:
+                              "Add Subdomain",
+                        ),
+                      ),
+
+                      const SizedBox(width: 8),
+
+                      IconButton(
+                        icon: const Icon(
+                          Icons.add_circle,
+                          color: Colors.greenAccent,
+                          size: 30,
+                        ),
+                        onPressed: () {
+                          final value =
+                              subdomainController.text
+                                  .trim();
+
+                          if (value.isEmpty) return;
+
+                          if (!subdomains
+                              .contains(value)) {
+                            setState(() {
+                              subdomains.add(value);
+                            });
+                          }
+
+                          subdomainController.clear();
+                        },
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  /// SUBDOMAIN LIST
+                  Container(
+                    constraints:
+                        const BoxConstraints(
+                      maxHeight: 220,
+                    ),
+
+                    child: subdomains.isEmpty
+                        ? Center(
+                            child: Padding(
+                              padding:
+                                  const EdgeInsets.all(
+                                      20),
+                              child: Text(
+                                "No subdomains added",
+                                style:
+                                    GoogleFonts.inter(
+                                  color:
+                                      Colors.white38,
+                                ),
+                              ),
+                            ),
+                          )
+                        : ListView.builder(
+                            shrinkWrap: true,
+                            itemCount:
+                                subdomains.length,
+                            itemBuilder:
+                                (context, index) {
+                              final item =
+                                  subdomains[index];
+
+                              return Container(
+                                margin:
+                                    const EdgeInsets
+                                        .only(
+                                  bottom: 10,
+                                ),
+
+                                padding:
+                                    const EdgeInsets
+                                        .symmetric(
+                                  horizontal: 14,
+                                  vertical: 12,
+                                ),
+
+                                decoration:
+                                    BoxDecoration(
+                                  color: Colors.white
+                                      .withOpacity(
+                                          0.04),
+
+                                  borderRadius:
+                                      BorderRadius
+                                          .circular(
+                                              12),
+
+                                  border: Border.all(
+                                    color: Colors
+                                        .white
+                                        .withOpacity(
+                                            0.08),
+                                  ),
+                                ),
+
+                                child: Row(
+                                  children: [
+                                    const Icon(
+                                      Icons
+                                          .domain_outlined,
+                                      color: Colors
+                                          .greenAccent,
+                                      size: 18,
+                                    ),
+
+                                    const SizedBox(
+                                        width: 10),
+
+                                    Expanded(
+                                      child: Text(
+                                        item,
+                                        style:
+                                            GoogleFonts
+                                                .inter(
+                                          color: Colors
+                                              .white,
+                                          fontSize: 14,
                                         ),
-                                      );
-                                    },
-                                  );
-                                },
+                                      ),
+                                    ),
+
+                                    IconButton(
+                                      icon:
+                                          const Icon(
+                                        Icons.delete,
+                                        color:
+                                            Colors.red,
+                                      ),
+                                      onPressed: () {
+                                        setState(() {
+                                          subdomains
+                                              .removeAt(
+                                                  index);
+                                        });
+                                      },
+                                    ),
+                                  ],
+                                ),
                               );
                             },
+                          ),
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  /// UPDATE BUTTON
+                  SizedBox(
+                    width: double.infinity,
+                    child: ActionButton(
+                      label: isLoading
+                          ? 'Saving...'
+                          : 'Update',
+
+                      color: Colors.green,
+
+                      isPrimary: true,
+
+                      onPressed: () async {
+                        setState(() {
+                          isLoading = true;
+                        });
+
+                        await pref.setString(
+                          'scale_id',
+                          nameController.text
+                              .trim(),
+                        );
+
+                        await pref.setStringList(
+                          'subdomains',
+                          subdomains,
+                        );
+
+                        setState(() {
+                          isLoading = false;
+                        });
+
+                        Navigator.pop(
+                          context,
+                          true,
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      );
+    },
+  );
+
+  if (result == true) {
+    setState(() {});
+  }
+},
                             isPrimary: true,
                           ),
                         ],
