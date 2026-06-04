@@ -14,7 +14,8 @@ class OcrScreen extends StatefulWidget {
   State<OcrScreen> createState() => _OcrScreenState();
 }
 
-class _OcrScreenState extends State<OcrScreen> with SingleTickerProviderStateMixin {
+class _OcrScreenState extends State<OcrScreen>
+    with SingleTickerProviderStateMixin {
   final OcrService _ocrService = OcrService();
 
   String? _selectedImagePath;
@@ -93,7 +94,10 @@ class _OcrScreenState extends State<OcrScreen> with SingleTickerProviderStateMix
       });
     } catch (e) {
       setState(() {
-        _errorMessage = e.toString().replaceFirst("Exception: ", "").replaceFirst("StateError: ", "");
+        _errorMessage = e
+            .toString()
+            .replaceFirst("Exception: ", "")
+            .replaceFirst("StateError: ", "");
       });
     } finally {
       setState(() {
@@ -153,9 +157,15 @@ class _OcrScreenState extends State<OcrScreen> with SingleTickerProviderStateMix
                           return Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Expanded(flex: 3, child: _buildLeftControlPanel()),
+                              Expanded(
+                                flex: 3,
+                                child: _buildLeftControlPanel(),
+                              ),
                               const SizedBox(width: 24),
-                              Expanded(flex: 4, child: _buildRightResultsPanel()),
+                              Expanded(
+                                flex: 4,
+                                child: _buildRightResultsPanel(),
+                              ),
                             ],
                           );
                         } else {
@@ -207,7 +217,9 @@ class _OcrScreenState extends State<OcrScreen> with SingleTickerProviderStateMix
               ),
               child: Icon(
                 _ocrService.isConnected ? Icons.link : Icons.link_off,
-                color: _ocrService.isConnected ? Colors.greenAccent : Colors.white54,
+                color: _ocrService.isConnected
+                    ? Colors.greenAccent
+                    : Colors.white54,
               ),
             ),
             title: Text(
@@ -246,8 +258,16 @@ class _OcrScreenState extends State<OcrScreen> with SingleTickerProviderStateMix
                 padding: const EdgeInsets.all(4),
                 child: Row(
                   children: [
-                    _buildEngineTab(OcrEngineType.simulation, "Simulation", Icons.auto_awesome),
-                    _buildEngineTab(OcrEngineType.tesseract, "Tesseract OCR", Icons.terminal),
+                    _buildEngineTab(
+                      OcrEngineType.simulation,
+                      "Simulation",
+                      Icons.auto_awesome,
+                    ),
+                    _buildEngineTab(
+                      OcrEngineType.tesseract,
+                      "Tesseract OCR",
+                      Icons.terminal,
+                    ),
                   ],
                 ),
               ),
@@ -258,14 +278,20 @@ class _OcrScreenState extends State<OcrScreen> with SingleTickerProviderStateMix
                   decoration: BoxDecoration(
                     color: Colors.blueAccent.withOpacity(0.05),
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.blueAccent.withOpacity(0.15)),
+                    border: Border.all(
+                      color: Colors.blueAccent.withOpacity(0.15),
+                    ),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(
                         children: [
-                          const Icon(Icons.info_outline, color: Colors.blueAccent, size: 20),
+                          const Icon(
+                            Icons.info_outline,
+                            color: Colors.blueAccent,
+                            size: 20,
+                          ),
                           const SizedBox(width: 10),
                           Text(
                             "TESSERACT OCR SETUP GUIDE",
@@ -281,16 +307,33 @@ class _OcrScreenState extends State<OcrScreen> with SingleTickerProviderStateMix
                       const SizedBox(height: 12),
                       Text(
                         "Tesseract OCR runs entirely locally on your machine. To enable it on Windows desktop:",
-                        style: GoogleFonts.inter(color: Colors.white70, fontSize: 12, height: 1.4),
+                        style: GoogleFonts.inter(
+                          color: Colors.white70,
+                          fontSize: 12,
+                          height: 1.4,
+                        ),
                       ),
                       const SizedBox(height: 10),
-                      _buildSetupStep("1", "Download and run the Windows Tesseract installer from the UB-Mannheim library."),
-                      _buildSetupStep("2", "Add the installation path (usually C:\\Program Files\\Tesseract-OCR) to your system environment variables 'PATH'."),
-                      _buildSetupStep("3", "Restart the Weighing Bridge app or console to register the environment change."),
+                      _buildSetupStep(
+                        "1",
+                        "Download and run the Windows Tesseract installer from the UB-Mannheim library.",
+                      ),
+                      _buildSetupStep(
+                        "2",
+                        "Add the installation path (usually C:\\Program Files\\Tesseract-OCR) to your system environment variables 'PATH'.",
+                      ),
+                      _buildSetupStep(
+                        "3",
+                        "Restart the Weighing Bridge app or console to register the environment change.",
+                      ),
                       const SizedBox(height: 8),
                       Text(
                         "Note: You can still use the Simulation engine above to test all scan workflows and UI animations without installing Tesseract.",
-                        style: GoogleFonts.inter(color: Colors.white30, fontSize: 11, fontStyle: FontStyle.italic),
+                        style: GoogleFonts.inter(
+                          color: Colors.white30,
+                          fontSize: 11,
+                          fontStyle: FontStyle.italic,
+                        ),
                       ),
                     ],
                   ),
@@ -349,7 +392,10 @@ class _OcrScreenState extends State<OcrScreen> with SingleTickerProviderStateMix
                         const SizedBox(height: 4),
                         Text(
                           "PNG, JPG, JPEG supported",
-                          style: GoogleFonts.inter(color: Colors.white38, fontSize: 11),
+                          style: GoogleFonts.inter(
+                            color: Colors.white38,
+                            fontSize: 11,
+                          ),
                         ),
                       ],
                     ),
@@ -367,7 +413,9 @@ class _OcrScreenState extends State<OcrScreen> with SingleTickerProviderStateMix
                           child: Container(
                             height: 180,
                             width: double.infinity,
-                            decoration: const BoxDecoration(color: Colors.black54),
+                            decoration: const BoxDecoration(
+                              color: Colors.black54,
+                            ),
                             child: Image.file(
                               File(_selectedImagePath!),
                               fit: BoxFit.cover,
@@ -391,7 +439,8 @@ class _OcrScreenState extends State<OcrScreen> with SingleTickerProviderStateMix
                                           color: Colors.greenAccent,
                                           boxShadow: [
                                             BoxShadow(
-                                              color: Colors.greenAccent.withOpacity(0.8),
+                                              color: Colors.greenAccent
+                                                  .withOpacity(0.8),
                                               blurRadius: 12,
                                               spreadRadius: 3,
                                             ),
@@ -413,7 +462,11 @@ class _OcrScreenState extends State<OcrScreen> with SingleTickerProviderStateMix
                           child: CircleAvatar(
                             backgroundColor: Colors.black.withOpacity(0.6),
                             child: IconButton(
-                              icon: const Icon(Icons.close, color: Colors.white, size: 18),
+                              icon: const Icon(
+                                Icons.close,
+                                color: Colors.white,
+                                size: 18,
+                              ),
                               onPressed: _isScanning
                                   ? null
                                   : () {
@@ -433,41 +486,62 @@ class _OcrScreenState extends State<OcrScreen> with SingleTickerProviderStateMix
                         Expanded(
                           child: Text(
                             p.basename(_selectedImagePath!),
-                            style: GoogleFonts.robotoMono(color: Colors.white54, fontSize: 11),
+                            style: GoogleFonts.robotoMono(
+                              color: Colors.white54,
+                              fontSize: 11,
+                            ),
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
                         TextButton.icon(
                           onPressed: _isScanning ? null : _pickImage,
-                          icon: const Icon(Icons.sync, size: 14, color: Colors.greenAccent),
+                          icon: const Icon(
+                            Icons.sync,
+                            size: 14,
+                            color: Colors.greenAccent,
+                          ),
                           label: Text(
                             "Change",
-                            style: GoogleFonts.inter(color: Colors.greenAccent, fontSize: 12),
+                            style: GoogleFonts.inter(
+                              color: Colors.greenAccent,
+                              fontSize: 12,
+                            ),
                           ),
-                        )
+                        ),
                       ],
                     ),
                   ],
                 ),
               const SizedBox(height: 16),
               ElevatedButton.icon(
-                onPressed: _selectedImagePath == null || _isScanning ? null : _runOcr,
+                onPressed: _selectedImagePath == null || _isScanning
+                    ? null
+                    : _runOcr,
                 icon: _isScanning
                     ? const SizedBox(
                         width: 16,
                         height: 16,
-                        child: CircularProgressIndicator(color: Colors.black, strokeWidth: 2),
+                        child: CircularProgressIndicator(
+                          color: Colors.black,
+                          strokeWidth: 2,
+                        ),
                       )
                     : const Icon(Icons.document_scanner_outlined, size: 18),
                 label: Text(
                   _isScanning ? "RECOGNIZING TEXT..." : "SCAN SNAPSHOT NOW",
-                  style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 13, letterSpacing: 1),
+                  style: GoogleFonts.inter(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                    letterSpacing: 1,
+                  ),
                 ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.greenAccent.shade700,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 18),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                   elevation: 4,
                 ),
               ),
@@ -503,7 +577,11 @@ class _OcrScreenState extends State<OcrScreen> with SingleTickerProviderStateMix
           Expanded(
             child: Text(
               text,
-              style: GoogleFonts.inter(color: Colors.white70, fontSize: 11.5, height: 1.3),
+              style: GoogleFonts.inter(
+                color: Colors.white70,
+                fontSize: 11.5,
+                height: 1.3,
+              ),
             ),
           ),
         ],
@@ -559,7 +637,10 @@ class _OcrScreenState extends State<OcrScreen> with SingleTickerProviderStateMix
               const SizedBox(
                 width: 50,
                 height: 50,
-                child: CircularProgressIndicator(color: Colors.greenAccent, strokeWidth: 3),
+                child: CircularProgressIndicator(
+                  color: Colors.greenAccent,
+                  strokeWidth: 3,
+                ),
               ),
               const SizedBox(height: 24),
               Text(
@@ -594,7 +675,11 @@ class _OcrScreenState extends State<OcrScreen> with SingleTickerProviderStateMix
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.document_scanner, color: Colors.white24, size: 54),
+              const Icon(
+                Icons.document_scanner,
+                color: Colors.white24,
+                size: 54,
+              ),
               const SizedBox(height: 16),
               Text(
                 "AWAITING INPUT SNAPSHOT",
@@ -653,7 +738,9 @@ class _OcrScreenState extends State<OcrScreen> with SingleTickerProviderStateMix
                 Icons.check_circle_outline,
                 result.confidence > 0.7
                     ? Colors.greenAccent
-                    : (result.confidence > 0.4 ? Colors.orangeAccent : Colors.redAccent),
+                    : (result.confidence > 0.4
+                          ? Colors.orangeAccent
+                          : Colors.redAccent),
               ),
             ),
           ],
@@ -666,16 +753,24 @@ class _OcrScreenState extends State<OcrScreen> with SingleTickerProviderStateMix
                   padding: const EdgeInsets.symmetric(vertical: 16.0),
                   child: Text(
                     "No structured labeled keys (e.g. Number Plate, Sign Board) could be automatically parsed. Raw text remains fully scanned.",
-                    style: GoogleFonts.inter(color: Colors.white38, fontSize: 13, height: 1.4),
+                    style: GoogleFonts.inter(
+                      color: Colors.white38,
+                      fontSize: 13,
+                      height: 1.4,
+                    ),
                   ),
                 )
               : Wrap(
                   spacing: 12,
                   runSpacing: 12,
                   children: result.labeledTexts.entries.map((entry) {
-                    final isNumberPlate = entry.key.toLowerCase().contains("plate");
-                    final isBlurryAlert = entry.key.toLowerCase().contains("blurry") || entry.key.toLowerCase().contains("alert");
-                    
+                    final isNumberPlate = entry.key.toLowerCase().contains(
+                      "plate",
+                    );
+                    final isBlurryAlert =
+                        entry.key.toLowerCase().contains("blurry") ||
+                        entry.key.toLowerCase().contains("alert");
+
                     Color cardAccentColor = Colors.blueAccent;
                     if (isNumberPlate) cardAccentColor = Colors.greenAccent;
                     if (isBlurryAlert) cardAccentColor = Colors.orangeAccent;
@@ -685,7 +780,9 @@ class _OcrScreenState extends State<OcrScreen> with SingleTickerProviderStateMix
                       decoration: BoxDecoration(
                         color: Colors.black26,
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: cardAccentColor.withOpacity(0.2)),
+                        border: Border.all(
+                          color: cardAccentColor.withOpacity(0.2),
+                        ),
                       ),
                       padding: const EdgeInsets.all(16),
                       child: Row(
@@ -697,7 +794,11 @@ class _OcrScreenState extends State<OcrScreen> with SingleTickerProviderStateMix
                               shape: BoxShape.circle,
                             ),
                             child: Icon(
-                              isNumberPlate ? Icons.directions_car : (isBlurryAlert ? Icons.warning_amber : Icons.label_outline),
+                              isNumberPlate
+                                  ? Icons.directions_car
+                                  : (isBlurryAlert
+                                        ? Icons.warning_amber
+                                        : Icons.label_outline),
                               color: cardAccentColor,
                               size: 20,
                             ),
@@ -720,7 +821,9 @@ class _OcrScreenState extends State<OcrScreen> with SingleTickerProviderStateMix
                                 Text(
                                   entry.value,
                                   style: GoogleFonts.robotoMono(
-                                    color: isNumberPlate ? Colors.greenAccent : Colors.white,
+                                    color: isNumberPlate
+                                        ? Colors.greenAccent
+                                        : Colors.white,
                                     fontSize: 15,
                                     fontWeight: FontWeight.bold,
                                   ),
@@ -746,7 +849,11 @@ class _OcrScreenState extends State<OcrScreen> with SingleTickerProviderStateMix
             ),
             child: Text(
               result.rawText,
-              style: GoogleFonts.robotoMono(color: Colors.white70, fontSize: 13, height: 1.5),
+              style: GoogleFonts.robotoMono(
+                color: Colors.white70,
+                fontSize: 13,
+                height: 1.5,
+              ),
             ),
           ),
         ),
@@ -768,7 +875,11 @@ class _OcrScreenState extends State<OcrScreen> with SingleTickerProviderStateMix
                   children: [
                     Row(
                       children: [
-                        const Icon(Icons.code, color: Colors.greenAccent, size: 16),
+                        const Icon(
+                          Icons.code,
+                          color: Colors.greenAccent,
+                          size: 16,
+                        ),
                         const SizedBox(width: 8),
                         Text(
                           "ocr_result.json",
@@ -781,7 +892,11 @@ class _OcrScreenState extends State<OcrScreen> with SingleTickerProviderStateMix
                       ],
                     ),
                     IconButton(
-                      icon: const Icon(Icons.copy, color: Colors.white38, size: 16),
+                      icon: const Icon(
+                        Icons.copy,
+                        color: Colors.white38,
+                        size: 16,
+                      ),
                       tooltip: "Copy JSON",
                       onPressed: () {
                         Clipboard.setData(ClipboardData(text: jsonStr));
@@ -790,18 +905,25 @@ class _OcrScreenState extends State<OcrScreen> with SingleTickerProviderStateMix
                             backgroundColor: Colors.teal.shade800,
                             content: Row(
                               children: [
-                                const Icon(Icons.check_circle_outline, color: Colors.greenAccent, size: 16),
+                                const Icon(
+                                  Icons.check_circle_outline,
+                                  color: Colors.greenAccent,
+                                  size: 16,
+                                ),
                                 const SizedBox(width: 12),
                                 Text(
                                   "JSON copied to clipboard!",
-                                  style: GoogleFonts.inter(fontWeight: FontWeight.w500, color: Colors.white),
+                                  style: GoogleFonts.inter(
+                                    fontWeight: FontWeight.w500,
+                                    color: Colors.white,
+                                  ),
                                 ),
                               ],
                             ),
                           ),
                         );
                       },
-                    )
+                    ),
                   ],
                 ),
                 const Divider(color: Colors.white12),
@@ -810,7 +932,10 @@ class _OcrScreenState extends State<OcrScreen> with SingleTickerProviderStateMix
                   scrollDirection: Axis.horizontal,
                   child: Text(
                     jsonStr,
-                    style: GoogleFonts.robotoMono(color: Colors.lightGreenAccent.shade100, fontSize: 12),
+                    style: GoogleFonts.robotoMono(
+                      color: Colors.lightGreenAccent.shade100,
+                      fontSize: 12,
+                    ),
                   ),
                 ),
               ],
@@ -821,7 +946,12 @@ class _OcrScreenState extends State<OcrScreen> with SingleTickerProviderStateMix
     );
   }
 
-  Widget _buildDiagnosticTile(String title, String val, IconData icon, Color color) {
+  Widget _buildDiagnosticTile(
+    String title,
+    String val,
+    IconData icon,
+    Color color,
+  ) {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
       decoration: BoxDecoration(
@@ -853,7 +983,11 @@ class _OcrScreenState extends State<OcrScreen> with SingleTickerProviderStateMix
           const SizedBox(height: 8),
           Text(
             val,
-            style: GoogleFonts.inter(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
+            style: GoogleFonts.inter(
+              color: Colors.white,
+              fontSize: 13,
+              fontWeight: FontWeight.bold,
+            ),
             overflow: TextOverflow.ellipsis,
           ),
         ],
@@ -870,10 +1004,14 @@ class _OcrScreenState extends State<OcrScreen> with SingleTickerProviderStateMix
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 12),
           decoration: BoxDecoration(
-            color: isSelected ? Colors.greenAccent.withOpacity(0.08) : Colors.transparent,
+            color: isSelected
+                ? Colors.greenAccent.withOpacity(0.08)
+                : Colors.transparent,
             borderRadius: BorderRadius.circular(8),
             border: Border.all(
-              color: isSelected ? Colors.greenAccent.withOpacity(0.2) : Colors.transparent,
+              color: isSelected
+                  ? Colors.greenAccent.withOpacity(0.2)
+                  : Colors.transparent,
             ),
           ),
           child: Row(

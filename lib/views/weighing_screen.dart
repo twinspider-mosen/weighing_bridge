@@ -49,8 +49,8 @@ class _WeighingScreenState extends State<WeighingScreen> {
 
   final SettingsService _settingsService = SettingsService();
   bool _uploadOnCapture = true;
-StreamSubscription? _commandSubscription;
-String? _lastCommandId;
+  StreamSubscription? _commandSubscription;
+  String? _lastCommandId;
   @override
   void initState() {
     super.initState();
@@ -59,7 +59,7 @@ String? _lastCommandId;
     _loadSettings();
     _scaleService.weightStream.listen(_handleNewData);
 
-   initStream(); 
+    initStream();
   }
 
   // initStream()async{
@@ -71,100 +71,107 @@ String? _lastCommandId;
   // ).listen(_handleCommandStream);
   // }
 
+  Future<void> initStream() async {
+    final details = await HelperFunctions.getSystemDetails();
+    final scaleID = details['scale_id'] as String? ?? '';
+    final subdomains = details['subdomains'] as List<String>? ?? [];
 
-Future<void> initStream() async {
-  final details = await HelperFunctions.getSystemDetails();
+    if (scaleID.isEmpty || subdomains.isEmpty) {
+      print("Firestore listener skipped: scaleID or subdomains is empty.");
+      return;
+    }
 
-  _commandSubscription = FirebaseService.getCommandStream(
-    scaleID: details['scale_id'] ?? '',
-    subdomains: details['subdomains'] ?? [],
-  ).listen((snapshot) async {
+    _commandSubscription =
+        FirebaseService.getCommandStream(
+          scaleID: scaleID,
+          subdomains: subdomains,
+        ).listen(
+          (snapshot) async {
+            for (final change in snapshot.docChanges) {
+              // ONLY react to newly added docs
+              if (change.type == DocumentChangeType.added) {
+                final command = CommandModel.fromMap(change.doc.data()!);
 
-    for (final change in snapshot.docChanges) {
+                print("NEW COMMAND RECEIVED");
+                print(command.requestID);
 
-      // ONLY react to newly added docs
-      if (change.type == DocumentChangeType.added) {
+                // prevent duplicates
+                // if (_lastCommandId == command.requestID) {
+                //   print("Duplicate ignored");
+                //   return;
+                // }
 
-        final command = CommandModel.fromMap(change.doc.data()!);
+                _lastCommandId = command.requestID;
 
-        print("NEW COMMAND RECEIVED");
-        print(command.requestID);
-
-        // prevent duplicates
-        // if (_lastCommandId == command.requestID) {
-        //   print("Duplicate ignored");
-        //   return;
-        // }
-
-        _lastCommandId = command.requestID;
-
-        await CameraCaptureService.captureAndHandle(
-          context: context,
-          autoUpload: true,
-          cameraPlayerKey: _cameraPlayerKey,
-          uploadOnCapture: _uploadOnCapture,
-          currentWeight: _currentWeight,
-          unit: _unit,
-          scaleID: command.scaleId,
-          requestID: command.requestID,
-          subdomain: command.subdomain,
-          onLoadingChanged: (loading) {
-            if (mounted) {
-              setState(() {
-                _isCapturingSnap = loading;
-              });
+                await CameraCaptureService.captureAndHandle(
+                  context: context,
+                  autoUpload: true,
+                  cameraPlayerKey: _cameraPlayerKey,
+                  uploadOnCapture: _uploadOnCapture,
+                  currentWeight: _currentWeight,
+                  unit: _unit,
+                  scaleID: command.scaleId,
+                  requestID: command.requestID,
+                  subdomain: command.subdomain,
+                  onLoadingChanged: (loading) {
+                    if (mounted) {
+                      setState(() {
+                        _isCapturingSnap = loading;
+                      });
+                    }
+                  },
+                );
+              }
             }
           },
+          onError: (e) {
+            print("Firestore listener stream error: $e");
+          },
         );
-      }
-    }
-  });
-}
+  }
 
+  Future<void> _handleCommandStream(dynamic snapshot) async {
+    if (!mounted) return;
 
-Future<void> _handleCommandStream(dynamic snapshot) async {
-  if (!mounted) return;
+    final commands = snapshot.docs
+        .map<CommandModel>((doc) => CommandModel.fromMap(doc.data()))
+        .toList();
 
-  final commands = snapshot.docs
-      .map<CommandModel>(
-        (doc) => CommandModel.fromMap(doc.data()),
-      )
-      .toList();
+    if (commands.isEmpty) return;
 
-  if (commands.isEmpty) return;
+    final command = commands.first;
 
-  final command = commands.first;
+    // prevent duplicate processing
+    if (_lastCommandId == command.requestID) return;
 
-  // prevent duplicate processing
-  if (_lastCommandId == command.requestID) return;
+    _lastCommandId = command.requestID;
 
-  _lastCommandId = command.requestID;
+    await CameraCaptureService.captureAndHandle(
+      context: context,
+      autoUpload: true,
+      cameraPlayerKey: _cameraPlayerKey,
+      uploadOnCapture: _uploadOnCapture,
+      currentWeight: _currentWeight,
+      unit: _unit,
+      scaleID: command.scaleId,
+      requestID: command.requestID,
+      subdomain: command.subdomain,
+      onLoadingChanged: (loading) {
+        if (mounted) {
+          setState(() {
+            _isCapturingSnap = loading;
+          });
+        }
+      },
+    );
+  }
 
-  await CameraCaptureService.captureAndHandle(
-    context: context,
-    autoUpload: true,
-    cameraPlayerKey: _cameraPlayerKey,
-    uploadOnCapture: _uploadOnCapture,
-    currentWeight: _currentWeight,
-    unit: _unit,
-    scaleID: command.scaleId,
-    requestID: command.requestID,
-    subdomain: command.subdomain,
-    onLoadingChanged: (loading) {
-      if (mounted) {
-        setState(() {
-          _isCapturingSnap = loading;
-        });
-      }
-    },
-  );
-}
-@override
-void dispose() {
-  _commandSubscription?.cancel();
-  _scaleService.dispose();
-  super.dispose();
-}
+  @override
+  void dispose() {
+    _commandSubscription?.cancel();
+    _scaleService.dispose();
+    super.dispose();
+  }
 
   Future<void> _loadSettings() async {
     final value = await _settingsService.getUploadOnCapture();
@@ -284,7 +291,6 @@ void dispose() {
     }
   }
 
-
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
@@ -296,6 +302,8 @@ void dispose() {
             backgroundColor: const Color(0xFF1A1F25),
             elevation: 0,
             title: Row(
+              mainAxisAlignment: MainAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Icon(Icons.scale, color: Colors.greenAccent),
                 const SizedBox(width: 12),
@@ -311,7 +319,7 @@ void dispose() {
             ),
             actions: [
               // ActionButton(label: "Add an Entry", color: Colors.greenAccent, isPrimary: false, onPressed: FirebaseService.addNewEntry,)
-              ],
+            ],
           ),
           drawer: WeighingDrawer(
             onCamerasUpdated: _loadSavedCameras,
@@ -352,7 +360,7 @@ void dispose() {
                     ).toList();
                     command = commands.isNotEmpty ? commands.first : command;
                   }
-               
+
                   return Container(
                     decoration: const BoxDecoration(
                       gradient: RadialGradient(
