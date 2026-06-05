@@ -39,7 +39,7 @@ class UploadService {
       imagePath: imagePath,
       scaleId: scaleID,
     );
-
+    
     await LoggerService().log(
       "Upload completed successfully",
     );

@@ -37,7 +37,9 @@ class CameraConfig {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is CameraConfig && runtimeType == other.runtimeType && id == other.id;
+      other is CameraConfig &&
+          runtimeType == other.runtimeType &&
+          id == other.id;
 
   @override
   int get hashCode => id.hashCode;
@@ -49,14 +51,19 @@ class CameraStorageService {
   Future<List<CameraConfig>> getCameras() async {
     final prefs = await SharedPreferences.getInstance();
     final jsonStringList = prefs.getStringList(_storageKey) ?? [];
-    
-    return jsonStringList.map((str) {
-      try {
-        return CameraConfig.fromJson(jsonDecode(str) as Map<String, dynamic>);
-      } catch (e) {
-        return null;
-      }
-    }).whereType<CameraConfig>().toList();
+
+    return jsonStringList
+        .map((str) {
+          try {
+            return CameraConfig.fromJson(
+              jsonDecode(str) as Map<String, dynamic>,
+            );
+          } catch (e) {
+            return null;
+          }
+        })
+        .whereType<CameraConfig>()
+        .toList();
   }
 
   Future<void> saveCamera(CameraConfig camera) async {
@@ -67,7 +74,7 @@ class CameraStorageService {
     } else {
       cameras.add(camera);
     }
-    
+
     final prefs = await SharedPreferences.getInstance();
     final jsonStringList = cameras.map((c) => jsonEncode(c.toJson())).toList();
     await prefs.setStringList(_storageKey, jsonStringList);
@@ -76,28 +83,23 @@ class CameraStorageService {
   Future<void> deleteCamera(String id) async {
     final cameras = await getCameras();
     cameras.removeWhere((c) => c.id == id);
-    
+
     final prefs = await SharedPreferences.getInstance();
     final jsonStringList = cameras.map((c) => jsonEncode(c.toJson())).toList();
     await prefs.setStringList(_storageKey, jsonStringList);
   }
-
-
-
-
-  
 }
 
 class CameraCaptureService {
   static Future<void> captureAndHandle({
     required BuildContext context,
     required GlobalKey<LiveCameraPlayerState> cameraPlayerKey,
-bool autoUpload= false,
+    bool autoUpload = false,
     required bool uploadOnCapture,
 
     required String currentWeight,
     required String unit,
-    
+
     required String scaleID,
     required String requestID,
     required String subdomain,
@@ -118,7 +120,10 @@ bool autoUpload= false,
                 const Icon(Icons.error_outline),
                 const SizedBox(width: 8),
                 Expanded(
-                  child: Text("Capture Error: $e"),
+                  child: Text(
+                    "Capture Error: $e",
+                    style: TextStyle(color: Colors.white),
+                  ),
                 ),
               ],
             ),
@@ -134,31 +139,26 @@ bool autoUpload= false,
 
     try {
       if (uploadOnCapture) {
-        if(autoUpload){
-await UploadService.uploadSnapshot(
-   imagePath: path,
-          currentWeight: "$currentWeight $unit",
-          requestID: requestID,
-          scaleID: scaleID,
-          subdomain: subdomain,
-          
-);
-        }else{
-
-        await showUploadDialog(
-          context: context,
-          imagePath: path,
-          currentWeight: "$currentWeight $unit",
-          requestID: requestID,
-          scaleID: scaleID,
-          subdomain: subdomain,
-        );
+        if (autoUpload) {
+          await UploadService.uploadSnapshot(
+            imagePath: path,
+            currentWeight: "$currentWeight $unit",
+            requestID: requestID,
+            scaleID: scaleID,
+            subdomain: subdomain,
+          );
+        } else {
+          await showUploadDialog(
+            context: context,
+            imagePath: path,
+            currentWeight: "$currentWeight $unit",
+            requestID: requestID,
+            scaleID: scaleID,
+            subdomain: subdomain,
+          );
         }
       } else {
-        await _handleDirectSave(
-          context: context,
-          path: path,
-        );
+        await _handleDirectSave(context: context, path: path);
       }
     } finally {
       onLoadingChanged(false);
@@ -185,25 +185,22 @@ await UploadService.uploadSnapshot(
             .replaceFirst("Exception: ", "")
             .replaceFirst("StateError: ", "");
 
-        await LoggerService().log(
-          "Direct Capture OCR failed",
-          e,
-        );
+        await LoggerService().log("Direct Capture OCR failed", e);
       }
     }
 
     if (!context.mounted) return;
 
-    final isPlate =
-        res?.labeledTexts.containsKey("Car Number Plate") ?? false;
+    final isPlate = res?.labeledTexts.containsKey("Car Number Plate") ?? false;
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        backgroundColor: Colors.teal.shade800,
+        backgroundColor: Colors.green.shade800,
         content: Text(
           "Snapshot saved to disk:\n$path"
           "${res != null ? "\nAUTOMATIC OCR: ${isPlate ? "Recognized Plate: ${res.labeledTexts["Car Number Plate"]}" : "Scanned Text Detected"}" : ""}"
           "${err != null ? "\nOCR Scan Failed: $err" : ""}",
+          style: TextStyle(color: Colors.white),
         ),
       ),
     );

@@ -49,8 +49,9 @@ class _WeighingScreenState extends State<WeighingScreen> {
 
   final SettingsService _settingsService = SettingsService();
   bool _uploadOnCapture = true;
-StreamSubscription? _commandSubscription;
-String? _lastCommandId;
+  bool _requireApprovalForRecords = false;
+  StreamSubscription? _commandSubscription;
+  String? _lastCommandId;
   @override
   void initState() {
     super.initState();
@@ -59,65 +60,275 @@ String? _lastCommandId;
     _loadSettings();
     _scaleService.weightStream.listen(_handleNewData);
 
-   initStream(); 
+    initStream();
   }
 
-  initStream()async{
-     final details = await HelperFunctions.getSystemDetails();
+  // initStream()async{
+  //    final details = await HelperFunctions.getSystemDetails();
 
-  _commandSubscription = FirebaseService.getCommandStream(
-    scaleID: details['scale_id'] ?? '',
-  ).listen(_handleCommandStream);
+  // _commandSubscription = FirebaseService.getCommandStream(
+  //   scaleID: details['scale_id'] ?? '',
+  //   subdomain: details['subdomain'] ?? '',
+  // ).listen(_handleCommandStream);
+  // }
+
+  Future<void> initStream() async {
+    final details = await HelperFunctions.getSystemDetails();
+    final scaleID = details['scale_id'] as String? ?? '';
+    final subdomains = details['subdomains'] as List<String>? ?? [];
+
+    if (scaleID.isEmpty || subdomains.isEmpty) {
+      print("Firestore listener skipped: scaleID or subdomains is empty.");
+      return;
+    }
+
+    _commandSubscription =
+        FirebaseService.getCommandStream(
+          scaleID: scaleID,
+          subdomains: subdomains,
+        ).listen(
+          (snapshot) async {
+            for (final change in snapshot.docChanges) {
+              // ONLY react to newly added docs
+              if (change.type == DocumentChangeType.added) {
+                final command = CommandModel.fromMap(change.doc.data()!);
+
+                print("NEW COMMAND RECEIVED");
+                print(command.requestID);
+
+                // prevent duplicates
+                // if (_lastCommandId == command.requestID) {
+                //   print("Duplicate ignored");
+                //   return;
+                // }
+
+                _lastCommandId = command.requestID;
+
+                // Load Settings again to check the current value
+                final approvalRequired = await _settingsService.getRequireApprovalForRecords();
+
+                if (approvalRequired) {
+                  if (!mounted) return;
+                  final approved = await showDialog<bool>(
+                    context: context,
+                    barrierDismissible: false,
+                    builder: (context) {
+                      return AlertDialog(
+                        backgroundColor: const Color(0xFF1A1F25),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        title: Row(
+                          children: [
+                            const Icon(Icons.verified_user_outlined, color: Colors.greenAccent),
+                            const SizedBox(width: 10),
+                            Text(
+                              'Approval Required',
+                              style: GoogleFonts.inter(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                        content: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'An incoming weight record has been received:',
+                              style: GoogleFonts.inter(color: Colors.white70, fontSize: 14),
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              'Scale ID: ${command.scaleId}',
+                              style: GoogleFonts.inter(color: Colors.white54, fontSize: 13),
+                            ),
+                            Text(
+                              'Subdomain: ${command.subdomain}',
+                              style: GoogleFonts.inter(color: Colors.white54, fontSize: 13),
+                            ),
+                            Text(
+                              'Request ID: ${command.requestID}',
+                              style: GoogleFonts.inter(color: Colors.white54, fontSize: 13),
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              'Do you want to accept this request, capture the camera feed, and submit the data?',
+                              style: GoogleFonts.inter(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w500),
+                            ),
+                          ],
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(context, false),
+                            child: Text(
+                              'Reject',
+                              style: GoogleFonts.inter(color: Colors.redAccent, fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                          ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.greenAccent,
+                              foregroundColor: Colors.black,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                            onPressed: () => Navigator.pop(context, true),
+                            child: Text(
+                              'Accept',
+                              style: GoogleFonts.inter(fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                        ],
+                      );
+                    },
+                  );
+
+                  if (approved == true) {
+                    if (!mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        backgroundColor: Colors.green.shade800,
+                        content: const Text(
+                          "Request approved. Capturing and sending data...",
+                          style: TextStyle(color: Colors.white),
+                        ),
+                      ),
+                    );
+                    await CameraCaptureService.captureAndHandle(
+                      context: context,
+                      autoUpload: true,
+                      cameraPlayerKey: _cameraPlayerKey,
+                      uploadOnCapture: _uploadOnCapture,
+                      currentWeight: _currentWeight,
+                      unit: _unit,
+                      scaleID: command.scaleId,
+                      requestID: command.requestID,
+                      subdomain: command.subdomain,
+                      onLoadingChanged: (loading) {
+                        if (mounted) {
+                          setState(() {
+                            _isCapturingSnap = loading;
+                          });
+                        }
+                      },
+                    );
+                  } else {
+                    try {
+                      await FirebaseFirestore.instance
+                          .collection('ScaleRequests')
+                          .doc(change.doc.id)
+                          .update({'status': 'rejected'});
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            backgroundColor: Colors.red.shade800,
+                            content: const Text(
+                              "Request rejected. Status updated to rejected.",
+                              style: TextStyle(color: Colors.white),
+                            ),
+                          ),
+                        );
+                      }
+                    } catch (e) {
+                      print("Error updating status to rejected: $e");
+                    }
+                  }
+                } else {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        backgroundColor: Colors.teal.shade800,
+                        content: const Text(
+                          "Incoming request received. Capturing and sending data...",
+                          style: TextStyle(color: Colors.white),
+                        ),
+                      ),
+                    );
+                  }
+
+                  await CameraCaptureService.captureAndHandle(
+                    context: context,
+                    autoUpload: true,
+                    cameraPlayerKey: _cameraPlayerKey,
+                    uploadOnCapture: _uploadOnCapture,
+                    currentWeight: _currentWeight,
+                    unit: _unit,
+                    scaleID: command.scaleId,
+                    requestID: command.requestID,
+                    subdomain: command.subdomain,
+                    onLoadingChanged: (loading) {
+                      if (mounted) {
+                        setState(() {
+                          _isCapturingSnap = loading;
+                        });
+                      }
+                    },
+                  );
+                }
+              }
+            }
+          },
+          onError: (e) {
+            print("Firestore listener stream error: $e");
+          },
+        );
   }
 
+  Future<void> _handleCommandStream(dynamic snapshot) async {
+    if (!mounted) return;
 
-Future<void> _handleCommandStream(dynamic snapshot) async {
-  if (!mounted) return;
+    final commands = snapshot.docs
+        .map<CommandModel>((doc) => CommandModel.fromMap(doc.data()))
+        .toList();
 
-  final commands = snapshot.docs
-      .map<CommandModel>(
-        (doc) => CommandModel.fromMap(doc.data()),
-      )
-      .toList();
+    if (commands.isEmpty) return;
 
-  if (commands.isEmpty) return;
+    final command = commands.first;
 
-  final command = commands.first;
+    // prevent duplicate processing
+    if (_lastCommandId == command.requestID) return;
 
-  // prevent duplicate processing
-  if (_lastCommandId == command.requestID) return;
+    _lastCommandId = command.requestID;
 
-  _lastCommandId = command.requestID;
+    await CameraCaptureService.captureAndHandle(
+      context: context,
+      autoUpload: true,
+      cameraPlayerKey: _cameraPlayerKey,
+      uploadOnCapture: _uploadOnCapture,
+      currentWeight: _currentWeight,
+      unit: _unit,
+      scaleID: command.scaleId,
+      requestID: command.requestID,
+      subdomain: command.subdomain,
+      onLoadingChanged: (loading) {
+        if (mounted) {
+          setState(() {
+            _isCapturingSnap = loading;
+          });
+        }
+      },
+    );
+  }
 
-  await CameraCaptureService.captureAndHandle(
-    context: context,
-    autoUpload: true,
-    cameraPlayerKey: _cameraPlayerKey,
-    uploadOnCapture: _uploadOnCapture,
-    currentWeight: _currentWeight,
-    unit: _unit,
-    scaleID: command.scaleId,
-    requestID: command.requestID,
-    subdomain: command.subdomain,
-    onLoadingChanged: (loading) {
-      if (mounted) {
-        setState(() {
-          _isCapturingSnap = loading;
-        });
-      }
-    },
-  );
-}
-@override
-void dispose() {
-  _commandSubscription?.cancel();
-  _scaleService.dispose();
-  super.dispose();
-}
+  @override
+  void dispose() {
+    _commandSubscription?.cancel();
+    _scaleService.dispose();
+    super.dispose();
+  }
 
   Future<void> _loadSettings() async {
     final value = await _settingsService.getUploadOnCapture();
-    if (mounted) setState(() => _uploadOnCapture = value);
+    final approvalValue = await _settingsService.getRequireApprovalForRecords();
+    if (mounted) {
+      setState(() {
+        _uploadOnCapture = value;
+        _requireApprovalForRecords = approvalValue;
+      });
+    }
   }
 
   Future<void> _loadSavedCameras() async {
@@ -233,7 +444,6 @@ void dispose() {
     }
   }
 
-
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
@@ -245,6 +455,8 @@ void dispose() {
             backgroundColor: const Color(0xFF1A1F25),
             elevation: 0,
             title: Row(
+              mainAxisAlignment: MainAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Icon(Icons.scale, color: Colors.greenAccent),
                 const SizedBox(width: 12),
@@ -258,7 +470,9 @@ void dispose() {
                 ),
               ],
             ),
-            actions: [ActionButton(label: "Add an Entry", color: Colors.greenAccent, isPrimary: false, onPressed: FirebaseService.addNewEntry,)],
+            actions: [
+              // ActionButton(label: "Add an Entry", color: Colors.greenAccent, isPrimary: false, onPressed: FirebaseService.addNewEntry,)
+            ],
           ),
           drawer: WeighingDrawer(
             onCamerasUpdated: _loadSavedCameras,
@@ -273,9 +487,10 @@ void dispose() {
               return StreamBuilder(
                 stream: FirebaseService.getCommandStream(
                   scaleID: snap.data!['scale_id'] ?? '',
+                  subdomains: snap.data!['subdomains'] ?? [],
                 ),
                 builder: (context, snapshot) {
-                  print(snapshot.data?.docs);
+                  // print(snapshot.data?.docs.toList().first.data());
                   print(snapshot.data?.docs);
                   // print("snapshot data"+snapshot.data?.docs);
                   if (!snapshot.hasData || snapshot.hasError) {
@@ -298,7 +513,7 @@ void dispose() {
                     ).toList();
                     command = commands.isNotEmpty ? commands.first : command;
                   }
-               
+
                   return Container(
                     decoration: const BoxDecoration(
                       gradient: RadialGradient(
@@ -320,6 +535,7 @@ void dispose() {
                                   WeighingStatusHeader(
                                     isListening: _isListening,
                                     status: _status,
+                                    requireApproval: _requireApprovalForRecords,
                                   ),
                                   const SizedBox(height: 24),
                                   if (isWide)
@@ -431,30 +647,23 @@ void dispose() {
           );
       },
       onCaptureSnap: () {
-        onCaptureSnap:
-        () {
-          CameraCaptureService.captureAndHandle(
-            context: context,
-            cameraPlayerKey: _cameraPlayerKey,
-
-            uploadOnCapture: _uploadOnCapture,
-
-            currentWeight: _currentWeight,
-            unit: _unit,
-
-            scaleID: scaleID,
-            requestID: requestID,
-            subdomain: subdomain,
-
-            onLoadingChanged: (loading) {
-              if (mounted) {
-                setState(() {
-                  _isCapturingSnap = loading;
-                });
-              }
-            },
-          );
-        };
+        CameraCaptureService.captureAndHandle(
+          context: context,
+          cameraPlayerKey: _cameraPlayerKey,
+          uploadOnCapture: _uploadOnCapture,
+          currentWeight: _currentWeight,
+          unit: _unit,
+          scaleID: scaleID,
+          requestID: requestID,
+          subdomain: subdomain,
+          onLoadingChanged: (loading) {
+            if (mounted) {
+              setState(() {
+                _isCapturingSnap = loading;
+              });
+            }
+          },
+        );
       },
       onZoomIn: () {
         _cameraPlayerKey.currentState?.zoomIn();

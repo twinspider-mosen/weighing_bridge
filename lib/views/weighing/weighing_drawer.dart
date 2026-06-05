@@ -5,6 +5,7 @@ import 'package:weighing_bridge/views/log_viewer_screen.dart';
 import 'package:weighing_bridge/views/ocr_screen.dart';
 import 'package:weighing_bridge/views/settings_screen.dart';
 import 'package:weighing_bridge/test_screen.dart';
+import 'package:weighing_bridge/views/tflite_detection_screen.dart';
 
 class WeighingDrawer extends StatelessWidget {
   final VoidCallback? onCamerasUpdated;
@@ -46,73 +47,90 @@ class WeighingDrawer extends StatelessWidget {
               ),
             ),
           ),
-          ListTile(
-            leading: const Icon(
-              Icons.dashboard_outlined,
-              color: Colors.greenAccent,
-            ),
-            title: const Text(
-              'Weighing Screen',
-              style: TextStyle(color: Colors.white),
-            ),
-            onTap: () {
-              Navigator.pop(context);
-            },
-          ),
-          ListTile(
-            leading: const Icon(
-              Icons.videocam_outlined,
-              color: Colors.blueAccent,
-            ),
-            title: const Text(
-              'IP Camera Management',
-              style: TextStyle(color: Colors.white),
-            ),
-            onTap: () async {
-              Navigator.pop(context);
-              await Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const CameraManagementScreen(),
-                ),
-              );
-              onCamerasUpdated?.call();
-            },
-          ),
-          ListTile(
-            leading: const Icon(
-              Icons.bug_report_outlined,
-              color: Colors.orangeAccent,
-            ),
-            title: const Text(
-              'IP Camera Test Screen',
-              style: TextStyle(color: Colors.white70),
-            ),
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const TestScreen()),
-              );
-            },
-          ),
-          ListTile(
-            leading: const Icon(
-              Icons.psychology,
-              color: Colors.greenAccent,
-            ),
-            title: const Text(
-              'AI OCR & Text Recognition',
-              style: TextStyle(color: Colors.white),
-            ),
-            onTap: () async {
-              Navigator.pop(context);
-              await Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const OcrScreen()),
-              );
-            },
-          ),
+          // ListTile(
+          //   leading: const Icon(
+          //     Icons.dashboard_outlined,
+          //     color: Colors.greenAccent,
+          //   ),
+          //   title: const Text(
+          //     'Weighing Screen',
+          //     style: TextStyle(color: Colors.white),
+          //   ),
+          //   onTap: () {
+          //     Navigator.pop(context);
+          //   },
+          // ),
+          // ListTile(
+          //   leading: const Icon(
+          //     Icons.videocam_outlined,
+          //     color: Colors.blueAccent,
+          //   ),
+          //   title: const Text(
+          //     'IP Camera Management',
+          //     style: TextStyle(color: Colors.white),
+          //   ),
+          //   onTap: () async {
+          //     Navigator.pop(context);
+          //     await Navigator.push(
+          //       context,
+          //       MaterialPageRoute(
+          //         builder: (context) => const CameraManagementScreen(),
+          //       ),
+          //     );
+          //     onCamerasUpdated?.call();
+          //   },
+          // ),
+          // ListTile(
+          //   leading: const Icon(
+          //     Icons.bug_report_outlined,
+          //     color: Colors.orangeAccent,
+          //   ),
+          //   title: const Text(
+          //     'IP Camera Test Screen',
+          //     style: TextStyle(color: Colors.white70),
+          //   ),
+          //   onTap: () {
+          //     Navigator.pop(context);
+          //     Navigator.push(
+          //       context,
+          //       MaterialPageRoute(builder: (context) => const TestScreen()),
+          //     );
+          //   },
+          // ),
+          // ListTile(
+          //   leading: const Icon(
+          //     Icons.psychology,
+          //     color: Colors.greenAccent,
+          //   ),
+          //   title: const Text(
+          //     'AI OCR & Text Recognition',
+          //     style: TextStyle(color: Colors.white),
+          //   ),
+          //   onTap: () async {
+          //     Navigator.pop(context);
+          //     await Navigator.push(
+          //       context,
+          //       MaterialPageRoute(builder: (context) => const OcrScreen()),
+          //     );
+          //   },
+          // ),
+          // ListTile(
+          //   leading: const Icon(
+          //     Icons.filter_center_focus_outlined,
+          //     color: Colors.cyanAccent,
+          //   ),
+          //   title: const Text(
+          //     'TFLite Plate Detection',
+          //     style: TextStyle(color: Colors.white),
+          //   ),
+          //   onTap: () async {
+          //     Navigator.pop(context);
+          //     await Navigator.push(
+          //       context,
+          //       MaterialPageRoute(builder: (context) => const TfliteDetectionScreen()),
+          //     );
+          //   },
+          // ),
           ListTile(
             leading: const Icon(
               Icons.settings_outlined,

@@ -1,5 +1,7 @@
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:weighing_bridge/firebase_options.dart';
 import 'package:weighing_bridge/services/logger_service.dart';
@@ -8,11 +10,25 @@ import 'package:weighing_bridge/views/weighing_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
 
-  MediaKit.ensureInitialized();
+  // Prevent google_fonts from downloading fonts at runtime.
+  // Without this, the app crashes on systems without internet access.
+  GoogleFonts.config.allowRuntimeFetching = false;
+
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+  } catch (e) {
+    debugPrint('Firebase initialization failed: $e');
+  }
+
+  try {
+    MediaKit.ensureInitialized();
+  } catch (e) {
+    debugPrint('MediaKit initialization failed: $e');
+  }
+
   await LoggerService().init();
   await OcrService().init();
   runApp(const WeighingBridgeApp());

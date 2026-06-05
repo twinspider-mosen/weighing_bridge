@@ -3,10 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Enum representing the active OCR engine type.
-enum OcrEngineType {
-  simulation,
-  tesseract,
-}
+enum OcrEngineType { simulation, tesseract }
 
 /// Structured response container for all OCR operations.
 class OcrResult {
@@ -25,18 +22,20 @@ class OcrResult {
   });
 
   Map<String, dynamic> toJson() => {
-        'raw_text': rawText,
-        'labeled_texts': labeledTexts,
-        'is_blurry': isBlurry,
-        'confidence': confidence,
-        'engine_used': engineUsed,
-        'timestamp': DateTime.now().toIso8601String(),
-      };
+    'raw_text': rawText,
+    'labeled_texts': labeledTexts,
+    'is_blurry': isBlurry,
+    'confidence': confidence,
+    'engine_used': engineUsed,
+    'timestamp': DateTime.now().toIso8601String(),
+  };
 
   factory OcrResult.fromJson(Map<String, dynamic> json) {
     return OcrResult(
       rawText: json['raw_text'] as String? ?? '',
-      labeledTexts: Map<String, String>.from(json['labeled_texts'] as Map? ?? {}),
+      labeledTexts: Map<String, String>.from(
+        json['labeled_texts'] as Map? ?? {},
+      ),
       isBlurry: json['is_blurry'] as bool? ?? false,
       confidence: (json['confidence'] as num?)?.toDouble() ?? 1.0,
       engineUsed: json['engine_used'] as String? ?? 'Unknown',
@@ -60,9 +59,12 @@ class SimulationOcrEngine implements BaseOcrEngine {
     final filename = imagePath.toLowerCase();
 
     // Smart detection based on filename to make demo testing very predictable and cool
-    if (filename.contains('plate') || filename.contains('car') || filename.contains('vehicle')) {
+    if (filename.contains('plate') ||
+        filename.contains('car') ||
+        filename.contains('vehicle')) {
       return OcrResult(
-        rawText: "WEIGHING BRIDGE AREA\nVEHICLE DEPARTURE\nNUMBER PLATE: ARB 1234\nSPEED LIMIT 20 KM/H",
+        rawText:
+            "WEIGHING BRIDGE AREA\nVEHICLE DEPARTURE\nNUMBER PLATE: ARB 1234\nSPEED LIMIT 20 KM/H",
         labeledTexts: {
           "Car Number Plate": "ARB 1234",
           "Sign Board": "SPEED LIMIT 20 KM/H",
@@ -72,13 +74,16 @@ class SimulationOcrEngine implements BaseOcrEngine {
         confidence: 0.98,
         engineUsed: "Simulation Engine",
       );
-    } else if (filename.contains('blurry') || filename.contains('blur') || filename.contains('dark')) {
+    } else if (filename.contains('blurry') ||
+        filename.contains('blur') ||
+        filename.contains('dark')) {
       return OcrResult(
         rawText: "S1GN B0ARD: CL0S3D\nC4R NUMB3R: ??? 5678",
         labeledTexts: {
           "Sign Board": "CLOSED (PARTIALLY READ)",
           "Car Number Plate": "UNK-5678 (LOW CONFIDENCE)",
-          "Image Quality Alert": "WARNING: Blurry or low-contrast text detected."
+          "Image Quality Alert":
+              "WARNING: Blurry or low-contrast text detected.",
         },
         isBlurry: true,
         confidence: 0.38,
@@ -98,7 +103,8 @@ class SimulationOcrEngine implements BaseOcrEngine {
     } else {
       // Default mock result
       return OcrResult(
-        rawText: "ANTIGRAVITY INDUSTRIAL SYSTEM v2.0\nGATEWAY 4\nWEIGH VALUE STABLE\nTRUCK ID: TR-9981",
+        rawText:
+            "ANTIGRAVITY INDUSTRIAL SYSTEM v2.0\nGATEWAY 4\nWEIGH VALUE STABLE\nTRUCK ID: TR-9981",
         labeledTexts: {
           "Sign Board": "ANTIGRAVITY INDUSTRIAL SYSTEM v2.0",
           "Truck Identifier": "TR-9981",
@@ -122,25 +128,28 @@ class TesseractOcrEngine implements BaseOcrEngine {
       bool useShell = true;
       if (Platform.isWindows) {
         final defaultPath = r'C:\Program Files\Tesseract-OCR\tesseract.exe';
+
+        // final defaultPath = r'C:\';
         if (File(defaultPath).existsSync()) {
           executable = defaultPath;
           useShell = false;
         }
       }
 
-      final result = await Process.run(
-        executable,
-        [imagePath, 'stdout', '-l', 'eng'],
-        runInShell: useShell,
-      );
-      
+      final result = await Process.run(executable, [
+        imagePath,
+        'stdout',
+        '-l',
+        'eng',
+      ], runInShell: useShell);
+
       if (result.exitCode != 0) {
         throw Exception(
           "Tesseract execution failed with exit code ${result.exitCode}.\n"
-          "Error: ${result.stderr}"
+          "Error: ${result.stderr}",
         );
       }
-      
+
       final rawText = result.stdout.toString().trim();
       if (rawText.isEmpty) {
         return OcrResult(
@@ -151,10 +160,10 @@ class TesseractOcrEngine implements BaseOcrEngine {
           engineUsed: "Tesseract OCR (CLI)",
         );
       }
-      
+
       // Parse labeled texts using smart heuristics
       final Map<String, String> labeledTexts = {};
-      
+
       // Heuristic 1: Extract license plates (common patterns like AAA 1234, AA-123-AA, etc.)
       final plateRegex = RegExp(
         r'\b([A-Z]{2,3}[- ]?[0-9]{3,4}|[0-9]{2,4}[- ]?[A-Z]{2,3}|[A-Z]{1,2}[- ]?[0-9]{1,4}[- ]?[A-Z]{1,3})\b',
@@ -162,17 +171,31 @@ class TesseractOcrEngine implements BaseOcrEngine {
       );
       final plateMatches = plateRegex.allMatches(rawText);
       if (plateMatches.isNotEmpty) {
-        labeledTexts["Car Number Plate"] = plateMatches.first.group(0)!.toUpperCase();
+        labeledTexts["Car Number Plate"] = plateMatches.first
+            .group(0)!
+            .toUpperCase();
       }
 
       // Heuristic 2: Look for typical Sign Board indicators
-      final signboardIndicators = ["stop", "limit", "capacity", "bridge", "welcome", "gateway", "exit", "entry", "speed"];
+      final signboardIndicators = [
+        "stop",
+        "limit",
+        "capacity",
+        "bridge",
+        "welcome",
+        "gateway",
+        "exit",
+        "entry",
+        "speed",
+      ];
       final lines = rawText.split('\n');
       final signBoardLines = <String>[];
 
       for (var line in lines) {
         final lowerLine = line.toLowerCase();
-        if (signboardIndicators.any((indicator) => lowerLine.contains(indicator))) {
+        if (signboardIndicators.any(
+          (indicator) => lowerLine.contains(indicator),
+        )) {
           signBoardLines.add(line.trim());
         }
       }
@@ -192,10 +215,10 @@ class TesseractOcrEngine implements BaseOcrEngine {
           shortWords++;
         }
       }
-      
+
       bool isBlurry = false;
       double confidence = 0.85;
-      
+
       if (totalWords > 0) {
         final fragmentRatio = shortWords / totalWords;
         if (fragmentRatio > 0.4 && totalWords > 3) {
@@ -218,7 +241,7 @@ class TesseractOcrEngine implements BaseOcrEngine {
           "Please verify that Tesseract is installed and configured:\n"
           "1. Download & Install Tesseract OCR for Windows (e.g. from UB-Mannheim).\n"
           "2. Add the installation directory (usually C:\\Program Files\\Tesseract-OCR) to your System Environment variables PATH.\n"
-          "3. Restart the application/terminal for changes to take effect."
+          "3. Restart the application/terminal for changes to take effect.",
         );
       }
       rethrow;
@@ -249,14 +272,15 @@ class OcrService extends ChangeNotifier {
     try {
       final prefs = await SharedPreferences.getInstance();
       _isConnected = prefs.getBool(_keyOcrConnected) ?? false;
-      
-      final engineIndex = prefs.getInt(_keyOcrEngine) ?? OcrEngineType.simulation.index;
+
+      final engineIndex =
+          prefs.getInt(_keyOcrEngine) ?? OcrEngineType.simulation.index;
       if (engineIndex >= OcrEngineType.values.length) {
         _activeEngine = OcrEngineType.simulation;
       } else {
         _activeEngine = OcrEngineType.values[engineIndex];
       }
-      
+
       _initialized = true;
       notifyListeners();
     } catch (e) {
