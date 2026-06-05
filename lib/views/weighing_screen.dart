@@ -49,6 +49,7 @@ class _WeighingScreenState extends State<WeighingScreen> {
 
   final SettingsService _settingsService = SettingsService();
   bool _uploadOnCapture = true;
+  bool _requireApprovalForRecords = false;
   StreamSubscription? _commandSubscription;
   String? _lastCommandId;
   @override
@@ -103,24 +104,170 @@ class _WeighingScreenState extends State<WeighingScreen> {
 
                 _lastCommandId = command.requestID;
 
-                await CameraCaptureService.captureAndHandle(
-                  context: context,
-                  autoUpload: true,
-                  cameraPlayerKey: _cameraPlayerKey,
-                  uploadOnCapture: _uploadOnCapture,
-                  currentWeight: _currentWeight,
-                  unit: _unit,
-                  scaleID: command.scaleId,
-                  requestID: command.requestID,
-                  subdomain: command.subdomain,
-                  onLoadingChanged: (loading) {
-                    if (mounted) {
-                      setState(() {
-                        _isCapturingSnap = loading;
-                      });
+                // Load Settings again to check the current value
+                final approvalRequired = await _settingsService.getRequireApprovalForRecords();
+
+                if (approvalRequired) {
+                  if (!mounted) return;
+                  final approved = await showDialog<bool>(
+                    context: context,
+                    barrierDismissible: false,
+                    builder: (context) {
+                      return AlertDialog(
+                        backgroundColor: const Color(0xFF1A1F25),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        title: Row(
+                          children: [
+                            const Icon(Icons.verified_user_outlined, color: Colors.greenAccent),
+                            const SizedBox(width: 10),
+                            Text(
+                              'Approval Required',
+                              style: GoogleFonts.inter(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                        content: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'An incoming weight record has been received:',
+                              style: GoogleFonts.inter(color: Colors.white70, fontSize: 14),
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              'Scale ID: ${command.scaleId}',
+                              style: GoogleFonts.inter(color: Colors.white54, fontSize: 13),
+                            ),
+                            Text(
+                              'Subdomain: ${command.subdomain}',
+                              style: GoogleFonts.inter(color: Colors.white54, fontSize: 13),
+                            ),
+                            Text(
+                              'Request ID: ${command.requestID}',
+                              style: GoogleFonts.inter(color: Colors.white54, fontSize: 13),
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              'Do you want to accept this request, capture the camera feed, and submit the data?',
+                              style: GoogleFonts.inter(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w500),
+                            ),
+                          ],
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(context, false),
+                            child: Text(
+                              'Reject',
+                              style: GoogleFonts.inter(color: Colors.redAccent, fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                          ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.greenAccent,
+                              foregroundColor: Colors.black,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                            onPressed: () => Navigator.pop(context, true),
+                            child: Text(
+                              'Accept',
+                              style: GoogleFonts.inter(fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                        ],
+                      );
+                    },
+                  );
+
+                  if (approved == true) {
+                    if (!mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        backgroundColor: Colors.green.shade800,
+                        content: const Text(
+                          "Request approved. Capturing and sending data...",
+                          style: TextStyle(color: Colors.white),
+                        ),
+                      ),
+                    );
+                    await CameraCaptureService.captureAndHandle(
+                      context: context,
+                      autoUpload: true,
+                      cameraPlayerKey: _cameraPlayerKey,
+                      uploadOnCapture: _uploadOnCapture,
+                      currentWeight: _currentWeight,
+                      unit: _unit,
+                      scaleID: command.scaleId,
+                      requestID: command.requestID,
+                      subdomain: command.subdomain,
+                      onLoadingChanged: (loading) {
+                        if (mounted) {
+                          setState(() {
+                            _isCapturingSnap = loading;
+                          });
+                        }
+                      },
+                    );
+                  } else {
+                    try {
+                      await FirebaseFirestore.instance
+                          .collection('ScaleRequests')
+                          .doc(change.doc.id)
+                          .update({'status': 'rejected'});
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            backgroundColor: Colors.red.shade800,
+                            content: const Text(
+                              "Request rejected. Status updated to rejected.",
+                              style: TextStyle(color: Colors.white),
+                            ),
+                          ),
+                        );
+                      }
+                    } catch (e) {
+                      print("Error updating status to rejected: $e");
                     }
-                  },
-                );
+                  }
+                } else {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        backgroundColor: Colors.teal.shade800,
+                        content: const Text(
+                          "Incoming request received. Capturing and sending data...",
+                          style: TextStyle(color: Colors.white),
+                        ),
+                      ),
+                    );
+                  }
+
+                  await CameraCaptureService.captureAndHandle(
+                    context: context,
+                    autoUpload: true,
+                    cameraPlayerKey: _cameraPlayerKey,
+                    uploadOnCapture: _uploadOnCapture,
+                    currentWeight: _currentWeight,
+                    unit: _unit,
+                    scaleID: command.scaleId,
+                    requestID: command.requestID,
+                    subdomain: command.subdomain,
+                    onLoadingChanged: (loading) {
+                      if (mounted) {
+                        setState(() {
+                          _isCapturingSnap = loading;
+                        });
+                      }
+                    },
+                  );
+                }
               }
             }
           },
@@ -175,7 +322,13 @@ class _WeighingScreenState extends State<WeighingScreen> {
 
   Future<void> _loadSettings() async {
     final value = await _settingsService.getUploadOnCapture();
-    if (mounted) setState(() => _uploadOnCapture = value);
+    final approvalValue = await _settingsService.getRequireApprovalForRecords();
+    if (mounted) {
+      setState(() {
+        _uploadOnCapture = value;
+        _requireApprovalForRecords = approvalValue;
+      });
+    }
   }
 
   Future<void> _loadSavedCameras() async {
@@ -382,6 +535,7 @@ class _WeighingScreenState extends State<WeighingScreen> {
                                   WeighingStatusHeader(
                                     isListening: _isListening,
                                     status: _status,
+                                    requireApproval: _requireApprovalForRecords,
                                   ),
                                   const SizedBox(height: 24),
                                   if (isWide)

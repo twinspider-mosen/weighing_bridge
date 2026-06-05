@@ -17,6 +17,7 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   final SettingsService _settingsService = SettingsService();
   bool _uploadOnCapture = true;
+  bool _requireApprovalForRecords = false;
   bool _isLoading = true;
 
   @override
@@ -27,9 +28,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Future<void> _loadSettings() async {
     final value = await _settingsService.getUploadOnCapture();
+    final approvalValue = await _settingsService.getRequireApprovalForRecords();
     if (mounted) {
       setState(() {
         _uploadOnCapture = value;
+        _requireApprovalForRecords = approvalValue;
         _isLoading = false;
       });
     }
@@ -53,6 +56,34 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 value
                     ? "Settings updated: Upload on capture enabled"
                     : "Settings updated: Direct saving to gallery enabled",
+                style: GoogleFonts.inter(fontWeight: FontWeight.w500),
+              ),
+            ],
+          ),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
+  Future<void> _toggleRequireApprovalForRecords(bool value) async {
+    setState(() {
+      _requireApprovalForRecords = value;
+    });
+    await _settingsService.setRequireApprovalForRecords(value);
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: Colors.teal.shade800,
+          content: Row(
+            children: [
+              const Icon(Icons.check_circle, color: Colors.white, size: 18),
+              const SizedBox(width: 8),
+              Text(
+                value
+                    ? "Settings updated: Approval required for records enabled"
+                    : "Settings updated: Approval required for records disabled",
                 style: GoogleFonts.inter(fontWeight: FontWeight.w500),
               ),
             ],
@@ -441,7 +472,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       enabledIcon: Icons.cloud_upload_outlined,
                       disabledIcon: Icons.save_alt_outlined,
                     ),
-                    // ReusableSettingTile(value: _uploadOnCapture, onChanged:_toggleUploadOnCapture , title: "Upload on Capture", enabledDescription: "Prompt with a secure popup to upload captured snapshots and scale weight readings directly to the API server.", disabledDescription: "Skip server uploads completely. Automatically save captured snapshots locally on this machine.", enabledIcon: Icons.cloud_upload_outlined, disabledIcon: Icons.save_alt_outlined),
+                    const SizedBox(height: 12),
+                    ReusableSettingTile(
+                      value: _requireApprovalForRecords,
+                      onChanged: _toggleRequireApprovalForRecords,
+                      title: "Require Approval for Records",
+                      enabledDescription:
+                          "Show an approval dialog when a record is received from the Firebase stream. If rejected, it updates the record to 'rejected'.",
+                      disabledDescription:
+                          "Automatically process incoming Firebase stream records without requiring user approval.",
+                      enabledIcon: Icons.verified_user_outlined,
+                      disabledIcon: Icons.gpp_bad_outlined,
+                    ),
 
                     ////
                     const SizedBox(height: 24),

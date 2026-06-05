@@ -4,11 +4,13 @@ import 'package:google_fonts/google_fonts.dart';
 class WeighingStatusHeader extends StatelessWidget {
   final bool isListening;
   final String status;
+  final bool requireApproval;
 
   const WeighingStatusHeader({
     super.key,
     required this.isListening,
     required this.status,
+    required this.requireApproval,
   });
 
   @override
@@ -23,7 +25,30 @@ class WeighingStatusHeader extends StatelessWidget {
             Text('LIVE BRIDGE LOAD',
                 style: GoogleFonts.inter(
                     fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 4, color: Colors.greenAccent.withOpacity(0.7))),
-            Text('Weight Active', style: GoogleFonts.inter(fontSize: 24, fontWeight: FontWeight.w900, color: Colors.white)),
+            Row(
+              children: [
+                Text('Weight Active', style: GoogleFonts.inter(fontSize: 24, fontWeight: FontWeight.w900, color: Colors.white)),
+                if (requireApproval) ...[
+                  const SizedBox(width: 12),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.amber.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: Colors.amberAccent, width: 0.8),
+                    ),
+                    child: Text(
+                      'APPROVAL MODE',
+                      style: GoogleFonts.inter(
+                        fontSize: 9,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.amberAccent,
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
           ],
         ),
         Container(
