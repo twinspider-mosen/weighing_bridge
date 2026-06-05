@@ -493,30 +493,23 @@ class _WeighingScreenState extends State<WeighingScreen> {
           );
       },
       onCaptureSnap: () {
-        onCaptureSnap:
-        () {
-          CameraCaptureService.captureAndHandle(
-            context: context,
-            cameraPlayerKey: _cameraPlayerKey,
-
-            uploadOnCapture: _uploadOnCapture,
-
-            currentWeight: _currentWeight,
-            unit: _unit,
-
-            scaleID: scaleID,
-            requestID: requestID,
-            subdomain: subdomain,
-
-            onLoadingChanged: (loading) {
-              if (mounted) {
-                setState(() {
-                  _isCapturingSnap = loading;
-                });
-              }
-            },
-          );
-        };
+        CameraCaptureService.captureAndHandle(
+          context: context,
+          cameraPlayerKey: _cameraPlayerKey,
+          uploadOnCapture: _uploadOnCapture,
+          currentWeight: _currentWeight,
+          unit: _unit,
+          scaleID: scaleID,
+          requestID: requestID,
+          subdomain: subdomain,
+          onLoadingChanged: (loading) {
+            if (mounted) {
+              setState(() {
+                _isCapturingSnap = loading;
+              });
+            }
+          },
+        );
       },
       onZoomIn: () {
         _cameraPlayerKey.currentState?.zoomIn();
