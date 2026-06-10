@@ -9,8 +9,10 @@ class UploadService {
     required String imagePath,
     required String currentWeight,
     required String requestID,
-    required String scaleID,
+    required String scaleName,
     required String subdomain,
+    required String recordType,
+    required String scaleStockId,
     bool runOCR = true,
   }) async {
     OcrResult? ocrResult;
@@ -20,14 +22,9 @@ class UploadService {
       try {
         ocrResult = await OcrService().scanImage(imagePath);
 
-        await LoggerService().log(
-          "OCR Complete: ${ocrResult.labeledTexts}",
-        );
+        await LoggerService().log("OCR Complete: ${ocrResult.labeledTexts}");
       } catch (e) {
-        await LoggerService().log(
-          "OCR Failed",
-          e,
-        );
+        await LoggerService().log("OCR Failed", e);
       }
     }
 
@@ -37,11 +34,11 @@ class UploadService {
       subdomain: subdomain,
       weight: currentWeight,
       imagePath: imagePath,
-      scaleId: scaleID,
+      scaleName: scaleName,
+      recordType: recordType,
+      scaleStockId: scaleStockId,
     );
-    
-    await LoggerService().log(
-      "Upload completed successfully",
-    );
+
+    await LoggerService().log("Upload completed successfully");
   }
 }

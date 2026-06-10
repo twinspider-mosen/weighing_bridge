@@ -6,7 +6,9 @@ import 'package:media_kit/media_kit.dart';
 import 'package:weighing_bridge/firebase_options.dart';
 import 'package:weighing_bridge/services/logger_service.dart';
 import 'package:weighing_bridge/services/ocr_service.dart';
+import 'package:weighing_bridge/views/auth/login_screen.dart';
 import 'package:weighing_bridge/views/weighing_screen.dart';
+import 'package:weighing_bridge/services/session_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -31,11 +33,13 @@ void main() async {
 
   await LoggerService().init();
   await OcrService().init();
-  runApp(const WeighingBridgeApp());
+  final bool hasSession = await SessionService.hasActiveSession();
+  runApp(WeighingBridgeApp(hasSession: hasSession));
 }
 
 class WeighingBridgeApp extends StatelessWidget {
-  const WeighingBridgeApp({super.key});
+  final bool hasSession;
+  const WeighingBridgeApp({super.key, required this.hasSession});
 
   @override
   Widget build(BuildContext context) {
@@ -48,7 +52,7 @@ class WeighingBridgeApp extends StatelessWidget {
         scaffoldBackgroundColor: const Color(0xFF0A0E12),
         useMaterial3: true,
       ),
-      home: const WeighingScreen(),
+      home: hasSession ? const WeighingScreen() : const LoginScreen(),
     );
   }
 }

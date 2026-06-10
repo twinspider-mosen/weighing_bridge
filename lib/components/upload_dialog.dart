@@ -13,14 +13,24 @@ Future<void> showUploadDialog({
   required String imagePath,
   required String currentWeight,
   required String requestID,
-  required String scaleID,
+  required String scaleName,
   required String subdomain,
+  required String recordType,
+  required String scaleStockId,
 }) async {
   return showDialog<void>(
     context: context,
     barrierDismissible: false,
     builder: (BuildContext context) {
-      return UploadDialog(imagePath: imagePath, currentWeight: currentWeight, requestID: requestID, scaleID: scaleID, subdomain: subdomain);
+      return UploadDialog(
+        imagePath: imagePath,
+        currentWeight: currentWeight,
+        requestID: requestID,
+        scaleName: scaleName,
+        scaleStockId: scaleStockId,
+        recordType: recordType,
+        subdomain: subdomain,
+      );
     },
   );
 }
@@ -29,18 +39,21 @@ class UploadDialog extends StatefulWidget {
   final String imagePath;
   final String currentWeight;
   final String requestID;
-  final String scaleID;
-  final String subdomain;
+  final String scaleName;
+  final String scaleStockId;
+  final String recordType;
 
+  final String subdomain;
 
   const UploadDialog({
     super.key,
     required this.imagePath,
     required this.currentWeight,
     required this.requestID,
-    required this.scaleID,
+    required this.scaleName,
+    required this.scaleStockId,
+    required this.recordType,
     required this.subdomain,
-
   });
 
   @override
@@ -54,7 +67,6 @@ class _UploadDialogState extends State<UploadDialog> {
   bool _isUploading = false;
   String? _errorMessage;
 
-
   bool _isOcrRunning = false;
   OcrResult? _ocrResult;
   String? _ocrError;
@@ -64,7 +76,6 @@ class _UploadDialogState extends State<UploadDialog> {
     super.initState();
     // Dynamically initialize selectedDomain to the first available option in the domain list.
     // This safely avoids Flutter DropdownButton AssertionErrors when modifying list items.
-   
 
     if (OcrService().isConnected) {
       _runBackgroundOcr();
@@ -79,10 +90,10 @@ class _UploadDialogState extends State<UploadDialog> {
 
     try {
       final result = await OcrService().scanImage(widget.imagePath);
-      
+
       await LoggerService().log(
         "Background OCR complete. Raw text: '${result.rawText.replaceAll('\n', ' ')}'. "
-        "Labeled: ${result.labeledTexts}. Engine: ${result.engineUsed}."
+        "Labeled: ${result.labeledTexts}. Engine: ${result.engineUsed}.",
       );
 
       if (mounted) {
@@ -92,7 +103,9 @@ class _UploadDialogState extends State<UploadDialog> {
           if (result.labeledTexts.containsKey("Car Number Plate")) {
             final rawPlate = result.labeledTexts["Car Number Plate"]!;
             // Strip out non-alphanumeric characters
-            final cleanPlate = rawPlate.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '').toLowerCase();
+            final cleanPlate = rawPlate
+                .replaceAll(RegExp(r'[^a-zA-Z0-9]'), '')
+                .toLowerCase();
             if (cleanPlate.isNotEmpty) {
               // vehicle number plate will be handled here
             }
@@ -103,7 +116,10 @@ class _UploadDialogState extends State<UploadDialog> {
       await LoggerService().log("Background OCR failed", e);
       if (mounted) {
         setState(() {
-          _ocrError = e.toString().replaceFirst("Exception: ", "").replaceFirst("StateError: ", "");
+          _ocrError = e
+              .toString()
+              .replaceFirst("Exception: ", "")
+              .replaceFirst("StateError: ", "");
         });
       }
     } finally {
@@ -114,7 +130,6 @@ class _UploadDialogState extends State<UploadDialog> {
       }
     }
   }
-
 
   Future<void> _handleUpload() async {
     if (!_formKey.currentState!.validate()) return;
@@ -129,7 +144,10 @@ class _UploadDialogState extends State<UploadDialog> {
         requestID: widget.requestID,
         subdomain: widget.subdomain,
         weight: widget.currentWeight,
-        imagePath: widget.imagePath, scaleId: widget.scaleID,
+        imagePath: widget.imagePath,
+        scaleName: widget.scaleName,
+        recordType: widget.recordType,
+        scaleStockId: widget.scaleStockId,
       );
 
       if (mounted) {
@@ -144,7 +162,10 @@ class _UploadDialogState extends State<UploadDialog> {
                 Expanded(
                   child: Text(
                     "Snapshot and weight uploaded successfully!}",
-                    style: GoogleFonts.inter(fontWeight: FontWeight.w500, color: Colors.white),
+                    style: GoogleFonts.inter(
+                      fontWeight: FontWeight.w500,
+                      color: Colors.white,
+                    ),
                   ),
                 ),
               ],
@@ -316,7 +337,9 @@ class _UploadDialogState extends State<UploadDialog> {
                     decoration: BoxDecoration(
                       color: Colors.greenAccent.withOpacity(0.02),
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.greenAccent.withOpacity(0.1)),
+                      border: Border.all(
+                        color: Colors.greenAccent.withOpacity(0.1),
+                      ),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -369,28 +392,43 @@ class _UploadDialogState extends State<UploadDialog> {
                           const SizedBox(height: 8),
                           Text(
                             "Extracting structured vehicle details...",
-                            style: GoogleFonts.inter(color: Colors.white38, fontSize: 11),
+                            style: GoogleFonts.inter(
+                              color: Colors.white38,
+                              fontSize: 11,
+                            ),
                           ),
                         ] else if (_ocrError != null) ...[
                           const SizedBox(height: 8),
                           Text(
                             "OCR Error: $_ocrError",
-                            style: GoogleFonts.inter(color: Colors.redAccent.shade100, fontSize: 11),
+                            style: GoogleFonts.inter(
+                              color: Colors.redAccent.shade100,
+                              fontSize: 11,
+                            ),
                           ),
                         ] else if (_ocrResult != null) ...[
                           const SizedBox(height: 12),
                           if (_ocrResult!.isBlurry) ...[
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 6,
+                              ),
                               margin: const EdgeInsets.only(bottom: 10),
                               decoration: BoxDecoration(
                                 color: Colors.orangeAccent.withOpacity(0.08),
                                 borderRadius: BorderRadius.circular(6),
-                                border: Border.all(color: Colors.orangeAccent.withOpacity(0.2)),
+                                border: Border.all(
+                                  color: Colors.orangeAccent.withOpacity(0.2),
+                                ),
                               ),
                               child: Row(
                                 children: [
-                                  const Icon(Icons.blur_on, color: Colors.orangeAccent, size: 14),
+                                  const Icon(
+                                    Icons.blur_on,
+                                    color: Colors.orangeAccent,
+                                    size: 14,
+                                  ),
                                   const SizedBox(width: 8),
                                   Expanded(
                                     child: Text(
@@ -409,16 +447,25 @@ class _UploadDialogState extends State<UploadDialog> {
                           if (_ocrResult!.labeledTexts.isEmpty)
                             Text(
                               "No structured vehicle details recognized.",
-                              style: GoogleFonts.inter(color: Colors.white38, fontSize: 11, fontStyle: FontStyle.italic),
+                              style: GoogleFonts.inter(
+                                color: Colors.white38,
+                                fontSize: 11,
+                                fontStyle: FontStyle.italic,
+                              ),
                             )
                           else
                             Column(
-                              children: _ocrResult!.labeledTexts.entries.map((entry) {
-                                final isPlate = entry.key.toLowerCase().contains("plate");
+                              children: _ocrResult!.labeledTexts.entries.map((
+                                entry,
+                              ) {
+                                final isPlate = entry.key
+                                    .toLowerCase()
+                                    .contains("plate");
                                 return Padding(
                                   padding: const EdgeInsets.only(bottom: 6.0),
                                   child: Row(
-                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
                                     children: [
                                       Text(
                                         entry.key.toUpperCase(),
@@ -430,7 +477,9 @@ class _UploadDialogState extends State<UploadDialog> {
                                       Text(
                                         entry.value,
                                         style: GoogleFonts.robotoMono(
-                                          color: isPlate ? Colors.greenAccent : Colors.white70,
+                                          color: isPlate
+                                              ? Colors.greenAccent
+                                              : Colors.white70,
                                           fontSize: 12,
                                           fontWeight: FontWeight.bold,
                                         ),
@@ -440,7 +489,7 @@ class _UploadDialogState extends State<UploadDialog> {
                                 );
                               }).toList(),
                             ),
-                        ]
+                        ],
                       ],
                     ),
                   ),
@@ -458,8 +507,6 @@ class _UploadDialogState extends State<UploadDialog> {
                   ),
                 ),
                 const SizedBox(height: 10),
-
-        
 
                 // Error message banner
                 if (_errorMessage != null) ...[

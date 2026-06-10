@@ -100,9 +100,12 @@ class CameraCaptureService {
     required String currentWeight,
     required String unit,
 
-    required String scaleID,
+    required String scaleName,
     required String requestID,
     required String subdomain,
+
+    required String recordType,
+    required String scaleStockId,
 
     required Function(bool loading) onLoadingChanged,
   }) async {
@@ -144,8 +147,11 @@ class CameraCaptureService {
             imagePath: path,
             currentWeight: "$currentWeight $unit",
             requestID: requestID,
-            scaleID: scaleID,
+            scaleName: scaleName,
             subdomain: subdomain,
+
+            recordType: recordType,
+            scaleStockId: scaleStockId,
           );
         } else {
           await showUploadDialog(
@@ -153,8 +159,11 @@ class CameraCaptureService {
             imagePath: path,
             currentWeight: "$currentWeight $unit",
             requestID: requestID,
-            scaleID: scaleID,
+            scaleName: scaleName,
             subdomain: subdomain,
+
+            recordType: recordType,
+            scaleStockId: scaleStockId,
           );
         }
       } else {

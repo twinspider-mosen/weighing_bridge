@@ -8,11 +8,13 @@ import 'package:weighing_bridge/components/action_button.dart';
 import 'package:weighing_bridge/components/live_camera_player.dart';
 import 'package:weighing_bridge/components/upload_dialog.dart';
 import 'package:weighing_bridge/model/command_model.dart';
+import 'package:weighing_bridge/model/user_model.dart';
 import 'package:weighing_bridge/services/camera_service.dart';
 import 'package:weighing_bridge/services/firebase_service.dart';
 import 'package:weighing_bridge/services/logger_service.dart';
 import 'package:weighing_bridge/services/ocr_service.dart';
 import 'package:weighing_bridge/services/scale_service.dart';
+import 'package:weighing_bridge/services/session_service.dart';
 import 'package:weighing_bridge/services/settings_service.dart';
 import 'package:weighing_bridge/utils/helper_functions.dart';
 import 'package:weighing_bridge/views/camera_management_screen.dart';
@@ -52,15 +54,27 @@ class _WeighingScreenState extends State<WeighingScreen> {
   bool _requireApprovalForRecords = false;
   StreamSubscription? _commandSubscription;
   String? _lastCommandId;
+  UserModel? _activeUser;
+
   @override
   void initState() {
     super.initState();
     _refreshPorts();
     _loadSavedCameras();
     _loadSettings();
+    _loadUser();
     _scaleService.weightStream.listen(_handleNewData);
 
     initStream();
+  }
+
+  Future<void> _loadUser() async {
+    final user = await SessionService.getActiveUser();
+    if (mounted) {
+      setState(() {
+        _activeUser = user;
+      });
+    }
   }
 
   // initStream()async{
@@ -105,7 +119,8 @@ class _WeighingScreenState extends State<WeighingScreen> {
                 _lastCommandId = command.requestID;
 
                 // Load Settings again to check the current value
-                final approvalRequired = await _settingsService.getRequireApprovalForRecords();
+                final approvalRequired = await _settingsService
+                    .getRequireApprovalForRecords();
 
                 if (approvalRequired) {
                   if (!mounted) return;
@@ -120,7 +135,10 @@ class _WeighingScreenState extends State<WeighingScreen> {
                         ),
                         title: Row(
                           children: [
-                            const Icon(Icons.verified_user_outlined, color: Colors.greenAccent),
+                            const Icon(
+                              Icons.verified_user_outlined,
+                              color: Colors.greenAccent,
+                            ),
                             const SizedBox(width: 10),
                             Text(
                               'Approval Required',
@@ -137,25 +155,41 @@ class _WeighingScreenState extends State<WeighingScreen> {
                           children: [
                             Text(
                               'An incoming weight record has been received:',
-                              style: GoogleFonts.inter(color: Colors.white70, fontSize: 14),
+                              style: GoogleFonts.inter(
+                                color: Colors.white70,
+                                fontSize: 14,
+                              ),
                             ),
                             const SizedBox(height: 16),
                             Text(
-                              'Scale ID: ${command.scaleId}',
-                              style: GoogleFonts.inter(color: Colors.white54, fontSize: 13),
+                              'Scale Name: ${command.scaleName}',
+                              style: GoogleFonts.inter(
+                                color: Colors.white54,
+                                fontSize: 13,
+                              ),
                             ),
                             Text(
                               'Subdomain: ${command.subdomain}',
-                              style: GoogleFonts.inter(color: Colors.white54, fontSize: 13),
+                              style: GoogleFonts.inter(
+                                color: Colors.white54,
+                                fontSize: 13,
+                              ),
                             ),
                             Text(
                               'Request ID: ${command.requestID}',
-                              style: GoogleFonts.inter(color: Colors.white54, fontSize: 13),
+                              style: GoogleFonts.inter(
+                                color: Colors.white54,
+                                fontSize: 13,
+                              ),
                             ),
                             const SizedBox(height: 16),
                             Text(
                               'Do you want to accept this request, capture the camera feed, and submit the data?',
-                              style: GoogleFonts.inter(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w500),
+                              style: GoogleFonts.inter(
+                                color: Colors.white,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500,
+                              ),
                             ),
                           ],
                         ),
@@ -164,7 +198,10 @@ class _WeighingScreenState extends State<WeighingScreen> {
                             onPressed: () => Navigator.pop(context, false),
                             child: Text(
                               'Reject',
-                              style: GoogleFonts.inter(color: Colors.redAccent, fontWeight: FontWeight.bold),
+                              style: GoogleFonts.inter(
+                                color: Colors.redAccent,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ),
                           ElevatedButton(
@@ -178,7 +215,9 @@ class _WeighingScreenState extends State<WeighingScreen> {
                             onPressed: () => Navigator.pop(context, true),
                             child: Text(
                               'Accept',
-                              style: GoogleFonts.inter(fontWeight: FontWeight.bold),
+                              style: GoogleFonts.inter(
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ),
                         ],
@@ -204,7 +243,7 @@ class _WeighingScreenState extends State<WeighingScreen> {
                       uploadOnCapture: _uploadOnCapture,
                       currentWeight: _currentWeight,
                       unit: _unit,
-                      scaleID: command.scaleId,
+                      scaleName: command.scaleName,
                       requestID: command.requestID,
                       subdomain: command.subdomain,
                       onLoadingChanged: (loading) {
@@ -214,6 +253,8 @@ class _WeighingScreenState extends State<WeighingScreen> {
                           });
                         }
                       },
+                      recordType: '',
+                      scaleStockId: '',
                     );
                   } else {
                     try {
@@ -256,7 +297,7 @@ class _WeighingScreenState extends State<WeighingScreen> {
                     uploadOnCapture: _uploadOnCapture,
                     currentWeight: _currentWeight,
                     unit: _unit,
-                    scaleID: command.scaleId,
+                    scaleName: command.scaleName,
                     requestID: command.requestID,
                     subdomain: command.subdomain,
                     onLoadingChanged: (loading) {
@@ -266,6 +307,8 @@ class _WeighingScreenState extends State<WeighingScreen> {
                         });
                       }
                     },
+                    recordType: command.recordType,
+                    scaleStockId: command.scaleStockId,
                   );
                 }
               }
@@ -300,7 +343,7 @@ class _WeighingScreenState extends State<WeighingScreen> {
       uploadOnCapture: _uploadOnCapture,
       currentWeight: _currentWeight,
       unit: _unit,
-      scaleID: command.scaleId,
+      scaleName: command.scaleName,
       requestID: command.requestID,
       subdomain: command.subdomain,
       onLoadingChanged: (loading) {
@@ -310,6 +353,8 @@ class _WeighingScreenState extends State<WeighingScreen> {
           });
         }
       },
+      recordType: command.recordType,
+      scaleStockId: command.scaleStockId,
     );
   }
 
@@ -471,7 +516,21 @@ class _WeighingScreenState extends State<WeighingScreen> {
               ],
             ),
             actions: [
-              // ActionButton(label: "Add an Entry", color: Colors.greenAccent, isPrimary: false, onPressed: FirebaseService.addNewEntry,)
+              if (_activeUser != null)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                  child: Center(
+                    child: Text(
+                      _activeUser!.company.toUpperCase(),
+                      style: GoogleFonts.inter(
+                        color: Colors.greenAccent,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                        letterSpacing: 1.2,
+                      ),
+                    ),
+                  ),
+                ),
             ],
           ),
           drawer: WeighingDrawer(
@@ -500,10 +559,13 @@ class _WeighingScreenState extends State<WeighingScreen> {
                   CommandModel command = CommandModel(
                     subdomain: '',
                     requestID: '',
-                    scaleId: '',
+
                     image: File('/'),
                     weight: 0.0,
                     status: 'pending',
+                    scaleName: '',
+                    scaleStockId: '',
+                    recordType: '',
                   );
                   if (snapshot.data != null) {
                     commands = List<CommandModel>.from(
@@ -552,9 +614,11 @@ class _WeighingScreenState extends State<WeighingScreen> {
                                           flex: 2,
                                           child: _buildCameraColumn(
                                             shrinkWrap: false,
-                                            scaleID: command.scaleId,
+                                            scaleName: command.scaleName,
                                             requestID: command.requestID,
                                             subdomain: command.subdomain,
+                                            scaleStockId: command.scaleStockId,
+                                            recordType: command.recordType,
                                           ),
                                         ),
                                       ],
@@ -566,9 +630,11 @@ class _WeighingScreenState extends State<WeighingScreen> {
                                     const SizedBox(height: 32),
                                     _buildCameraColumn(
                                       shrinkWrap: true,
-                                      scaleID: command.scaleId,
                                       requestID: command.requestID,
                                       subdomain: command.subdomain,
+                                      scaleName: command.scaleName,
+                                      scaleStockId: command.scaleStockId,
+                                      recordType: command.recordType,
                                     ),
                                   ],
                                 ],
@@ -617,7 +683,9 @@ class _WeighingScreenState extends State<WeighingScreen> {
 
   Widget _buildCameraColumn({
     required bool shrinkWrap,
-    required String scaleID,
+    required String scaleName,
+    required String scaleStockId,
+    required String recordType,
     required String requestID,
     required String subdomain,
   }) {
@@ -653,7 +721,6 @@ class _WeighingScreenState extends State<WeighingScreen> {
           uploadOnCapture: _uploadOnCapture,
           currentWeight: _currentWeight,
           unit: _unit,
-          scaleID: scaleID,
           requestID: requestID,
           subdomain: subdomain,
           onLoadingChanged: (loading) {
@@ -663,6 +730,9 @@ class _WeighingScreenState extends State<WeighingScreen> {
               });
             }
           },
+          scaleName: scaleName,
+          scaleStockId: scaleStockId,
+          recordType: recordType,
         );
       },
       onZoomIn: () {

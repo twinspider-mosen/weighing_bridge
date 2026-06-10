@@ -5,7 +5,6 @@ class WeighingStatusHeader extends StatelessWidget {
   final bool isListening;
   final String status;
   final bool requireApproval;
-
   const WeighingStatusHeader({
     super.key,
     required this.isListening,
@@ -22,16 +21,32 @@ class WeighingStatusHeader extends StatelessWidget {
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('LIVE BRIDGE LOAD',
-                style: GoogleFonts.inter(
-                    fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 4, color: Colors.greenAccent.withOpacity(0.7))),
+            Text(
+              'LIVE BRIDGE LOAD',
+              style: GoogleFonts.inter(
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 4,
+                color: Colors.greenAccent.withOpacity(0.7),
+              ),
+            ),
             Row(
               children: [
-                Text('Weight Active', style: GoogleFonts.inter(fontSize: 24, fontWeight: FontWeight.w900, color: Colors.white)),
+                Text(
+                  'Weight Active',
+                  style: GoogleFonts.inter(
+                    fontSize: 24,
+                    fontWeight: FontWeight.w900,
+                    color: Colors.white,
+                  ),
+                ),
                 if (requireApproval) ...[
                   const SizedBox(width: 12),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.amber.withOpacity(0.15),
                       borderRadius: BorderRadius.circular(6),
@@ -54,7 +69,9 @@ class WeighingStatusHeader extends StatelessWidget {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           decoration: BoxDecoration(
-            color: isListening ? Colors.green.withOpacity(0.1) : Colors.red.withOpacity(0.1),
+            color: isListening
+                ? Colors.green.withOpacity(0.1)
+                : Colors.red.withOpacity(0.1),
             borderRadius: BorderRadius.circular(20),
             border: Border.all(color: statusColor, width: 1),
           ),
@@ -67,13 +84,25 @@ class WeighingStatusHeader extends StatelessWidget {
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   color: statusColor,
-                  boxShadow: [BoxShadow(color: statusColor, blurRadius: 10, spreadRadius: 2)],
+                  boxShadow: [
+                    BoxShadow(
+                      color: statusColor,
+                      blurRadius: 10,
+                      spreadRadius: 2,
+                    ),
+                  ],
                 ),
               ),
               const SizedBox(width: 12),
-              Text(status.toUpperCase(),
-                  style: GoogleFonts.inter(
-                      fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1, color: statusColor)),
+              Text(
+                status.toUpperCase(),
+                style: GoogleFonts.inter(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 1,
+                  color: statusColor,
+                ),
+              ),
             ],
           ),
         ),
