@@ -68,17 +68,22 @@ class CameraFeedPanel extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.3),
+        color: Colors.white.withOpacity(0.03),
         borderRadius: BorderRadius.circular(24),
         border: Border.all(color: Colors.white.withOpacity(0.05)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.2),
-            blurRadius: 20,
-            spreadRadius: 2,
-          ),
-        ],
       ),
+      // decoration: BoxDecoration(
+      //   color: Colors.black.withOpacity(0.3),
+      //   borderRadius: BorderRadius.circular(24),
+      //   border: Border.all(color: Colors.white.withOpacity(0.05)),
+      //   boxShadow: [
+      //     BoxShadow(
+      //       color: Colors.black.withOpacity(0.2),
+      //       blurRadius: 20,
+      //       spreadRadius: 2,
+      //     ),
+      // ],
+      // ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: shrinkWrap ? MainAxisSize.min : MainAxisSize.max,
@@ -317,7 +322,7 @@ class CameraFeedPanel extends StatelessWidget {
         const SizedBox(height: 10),
         // Player
         SizedBox(
-          height: 220,
+          height: 320,
           child: camera == null
               ? Container(
                   decoration: BoxDecoration(

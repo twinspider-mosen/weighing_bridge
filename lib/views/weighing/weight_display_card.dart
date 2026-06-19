@@ -20,7 +20,7 @@ class WeightDisplayCard extends StatelessWidget {
     final layout = WeighingLayoutHelper(context);
     final double horizontalPadding = layout.isCompact ? 24.0 : 48.0;
     final double verticalPadding = layout.isCompact ? 20.0 : 32.0;
-    final double weightFontSize = layout.isCompact ? 56.0 : 96.0;
+    final double weightFontSize = layout.isCompact ? 96.0 : 96.0;
     final double unitFontSize = layout.isCompact ? 20.0 : 32.0;
 
     return Center(
@@ -32,18 +32,18 @@ class WeightDisplayCard extends StatelessWidget {
               horizontal: horizontalPadding,
               vertical: verticalPadding,
             ),
-            decoration: BoxDecoration(
-              color: Colors.black.withOpacity(0.4),
-              borderRadius: BorderRadius.circular(layout.isCompact ? 16 : 24),
-              border: Border.all(color: Colors.white.withOpacity(0.05)),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.greenAccent.withOpacity(0.05),
-                  blurRadius: 30,
-                  spreadRadius: 5,
-                ),
-              ],
-            ),
+            // decoration: BoxDecoration(
+            //   // color: Colors.black.withOpacity(0.4),
+            //   borderRadius: BorderRadius.circular(layout.isCompact ? 16 : 24),
+            //   border: Border.all(color: Colors.white.withOpacity(0.05)),
+            //   boxShadow: [
+            //     BoxShadow(
+            //       color: Colors.greenAccent.withOpacity(0.05),
+            //       blurRadius: 30,
+            //       spreadRadius: 5,
+            //     ),
+            //   ],
+            // ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.baseline,
