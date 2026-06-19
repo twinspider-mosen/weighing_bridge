@@ -1,13 +1,12 @@
-import 'dart:convert';
 import 'dart:developer';
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:weighing_bridge/model/user_model.dart';
-import 'package:weighing_bridge/services/api_service.dart';
-import 'package:weighing_bridge/services/session_service.dart';
-import 'package:weighing_bridge/views/weighing_screen.dart';
+import 'package:spider_weighbridge/model/user_model.dart';
+import 'package:spider_weighbridge/services/api_service.dart';
+import 'package:spider_weighbridge/services/session_service.dart';
+import 'package:spider_weighbridge/views/weighing_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -173,6 +172,7 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        leadingWidth: 2,
         backgroundColor: const Color(0xFF1A1F25),
         elevation: 0,
         title: Row(
@@ -300,28 +300,29 @@ class _LoginScreenState extends State<LoginScreen> {
                 });
               },
             ),
-            Expanded(
-              child: Text(
-                '${_subdomainController.text}.weighing.com',
-                style: GoogleFonts.inter(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                  color: Colors.greenAccent,
-                ),
-                overflow: TextOverflow.ellipsis,
+            Text(
+              'Sign In',
+              style: GoogleFonts.inter(
+                fontSize: 28,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
               ),
             ),
+            // Expanded(
+            //   child: Text(
+            //     '${_subdomainController.text}.spiderweighbridge.com',
+            //     style: GoogleFonts.inter(
+            //       fontSize: 14,
+            //       fontWeight: FontWeight.w500,
+            //       color: Colors.greenAccent,
+            //     ),
+            //     overflow: TextOverflow.ellipsis,
+            // ),
+            // ),
           ],
         ),
         const SizedBox(height: 16),
-        Text(
-          'Sign In',
-          style: GoogleFonts.inter(
-            fontSize: 28,
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-          ),
-        ),
+
         const SizedBox(height: 8),
         Text(
           'Enter your credentials to access your dashboard',

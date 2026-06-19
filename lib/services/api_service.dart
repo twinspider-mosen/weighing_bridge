@@ -5,6 +5,7 @@ import 'package:path/path.dart' as p;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:dio/io.dart';
+import 'package:spider_weighbridge/services/logger_service.dart';
 
 /// Standalone Service to handle scale and screenshot uploads using the Dio package.
 ///
@@ -15,7 +16,7 @@ class ApiService {
           BaseOptions(
             connectTimeout: const Duration(seconds: 30),
             receiveTimeout: const Duration(seconds: 30),
-            headers: {'App-Ref-Type': 'weighBridge', 'App-Ref': 'flour_mill'},
+            headers: {'App-Ref-Type': 'weighbridge', 'App-Ref': 'flour_mill'},
           ),
         )
         ..httpClientAdapter = IOHttpClientAdapter(
@@ -50,43 +51,59 @@ class ApiService {
     required String scaleName,
     required String subdomain,
     required String weight,
-    required String imagePath,
+    String? frontImagePath,
+    String? backImagePath,
     required String recordType,
     required String scaleStockId,
+    required String recordStage,
+    required String moduleType,
   }) async {
-    // Verify file exists
-    final file = File(imagePath);
-    if (!await file.exists()) {
-      throw FileNotFoundException(
-        "Snapshot file does not exist at path: $imagePath",
-      );
-    }
-
-    // Build the multipart Form Data with exact keys: subdomain, domain, weight, and snap.
-    final FormData formData = FormData.fromMap({
+    // Build the multipart Form Data
+    final Map<String, dynamic> formMap = {
       'subdomain': subdomain.trim(),
       'request_id': requestID,
+      'record_stage': recordStage,
+      'module_type': moduleType,
       'scale_name': scaleName,
       'record_type': recordType,
       'scale_stock_id': scaleStockId,
-      'weight': weight,
+      'weight': double.tryParse(weight) ?? 0.0,
+    };
 
-      'back_image': '',
-      'front_image': await MultipartFile.fromFile(
-        file.path,
-        filename: p.basename(file.path),
-      ),
-    });
+    // Attach front image if provided and exists
+    if (frontImagePath != null && frontImagePath.isNotEmpty) {
+      final frontFile = File(frontImagePath);
+      if (await frontFile.exists()) {
+        formMap['front_image'] = await MultipartFile.fromFile(
+          frontFile.path,
+          filename: p.basename(frontFile.path),
+        );
+      }
+    }
+
+    // Attach back image if provided and exists
+    if (backImagePath != null && backImagePath.isNotEmpty) {
+      final backFile = File(backImagePath);
+      if (await backFile.exists()) {
+        formMap['back_image'] = await MultipartFile.fromFile(
+          backFile.path,
+          filename: p.basename(backFile.path),
+        );
+      }
+    }
+
+    final FormData formData = FormData.fromMap(formMap);
     print("Form Data = ${formData.fields}");
     final url = "https://${subdomain.trim()}.${Urls.uploadUrl}";
     print("Final URL $url");
-
+    LoggerService().log('Form Data = ${formData.fields}\n and url = $url');
     // return Response(requestOptions: RequestOptions(data: formData
     // ));
     // Execute the POST request to the fixed uploadUrl
     try {
       return await _dio.post(url, data: formData);
     } catch (e) {
+      LoggerService().log('Error on posting data to server: ${e.toString()}');
       log("Error on posting data to server: ${e.toString()}");
       return Response(requestOptions: RequestOptions(data: 'null'));
     }
@@ -101,6 +118,7 @@ class ApiService {
         options: Options(extra: {'requiresToken': false}),
       );
     } catch (e) {
+      LoggerService().log('Error on verifying subdomain: ${e.toString()}');
       log("Error on verifying subdomain: ${e.toString()}");
       return Response(requestOptions: RequestOptions(data: 'null'));
     }
@@ -110,6 +128,7 @@ class ApiService {
     final String url = "https://$subDomain.${Urls.authenticate}";
     // final String url = "https://${Urls.authenticate}";
     print(url);
+    LoggerService().log('Url $url');
     final data = FormData.fromMap({
       'email': email.trim(),
       'password': pass.trim(),

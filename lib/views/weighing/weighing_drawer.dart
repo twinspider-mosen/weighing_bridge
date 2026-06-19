@@ -1,16 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:weighing_bridge/model/user_model.dart';
-import 'package:weighing_bridge/services/session_service.dart';
-import 'package:weighing_bridge/views/auth/login_screen.dart';
-import 'package:weighing_bridge/views/camera_management_screen.dart';
-import 'package:weighing_bridge/views/log_viewer_screen.dart';
-import 'package:weighing_bridge/views/ocr_screen.dart';
-import 'package:weighing_bridge/views/settings_screen.dart';
-import 'package:weighing_bridge/views/shared_prefs_viewer_screen.dart';
-import 'package:weighing_bridge/test_screen.dart';
-import 'package:weighing_bridge/views/tflite_detection_screen.dart';
-import 'package:weighing_bridge/views/weighing_screen.dart';
+import 'package:spider_weighbridge/model/user_model.dart';
+import 'package:spider_weighbridge/services/session_service.dart';
+import 'package:spider_weighbridge/views/auth/login_screen.dart';
+import 'package:spider_weighbridge/views/log_viewer_screen.dart';
+import 'package:spider_weighbridge/views/settings_screen.dart';
+import 'package:spider_weighbridge/views/shared_prefs_viewer_screen.dart';
+import 'package:spider_weighbridge/views/weighing_screen.dart';
 
 class WeighingDrawer extends StatefulWidget {
   final VoidCallback? onCamerasUpdated;
@@ -105,7 +101,11 @@ class _WeighingDrawerState extends State<WeighingDrawer> {
               backgroundColor: Colors.greenAccent,
               child: Text(
                 _activeUser?.name.substring(0, 1).toUpperCase() ?? 'W',
-                style: const TextStyle(color: Colors.black, fontSize: 24, fontWeight: FontWeight.bold),
+                style: const TextStyle(
+                  color: Colors.black,
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
             otherAccountsPictures: _availableUsers
@@ -130,33 +130,53 @@ class _WeighingDrawerState extends State<WeighingDrawer> {
                 builder: (context) => Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    ..._availableUsers.map((u) => ListTile(
-                          leading: const CircleAvatar(
-                            backgroundColor: Colors.grey,
-                            child: Icon(Icons.person, color: Colors.white),
-                          ),
-                          title: Text(u.name, style: const TextStyle(color: Colors.white)),
-                          subtitle: Text(u.email, style: const TextStyle(color: Colors.white70)),
-                          trailing: u.id == _activeUser?.id
-                              ? const Icon(Icons.check, color: Colors.greenAccent)
-                              : null,
-                          onTap: () {
-                            Navigator.pop(context);
-                            _switchUser(u);
-                          },
-                        )),
+                    ..._availableUsers.map(
+                      (u) => ListTile(
+                        leading: const CircleAvatar(
+                          backgroundColor: Colors.grey,
+                          child: Icon(Icons.person, color: Colors.white),
+                        ),
+                        title: Text(
+                          u.name,
+                          style: const TextStyle(color: Colors.white),
+                        ),
+                        subtitle: Text(
+                          u.email,
+                          style: const TextStyle(color: Colors.white70),
+                        ),
+                        trailing: u.id == _activeUser?.id
+                            ? const Icon(Icons.check, color: Colors.greenAccent)
+                            : null,
+                        onTap: () {
+                          Navigator.pop(context);
+                          _switchUser(u);
+                        },
+                      ),
+                    ),
                     const Divider(color: Colors.white24),
                     ListTile(
-                      leading: const Icon(Icons.person_add, color: Colors.greenAccent),
-                      title: const Text('Add Another User', style: TextStyle(color: Colors.white)),
+                      leading: const Icon(
+                        Icons.person_add,
+                        color: Colors.greenAccent,
+                      ),
+                      title: const Text(
+                        'Add Another User',
+                        style: TextStyle(color: Colors.white),
+                      ),
                       onTap: () {
                         Navigator.pop(context);
                         _addNewUser();
                       },
                     ),
                     ListTile(
-                      leading: const Icon(Icons.logout, color: Colors.redAccent),
-                      title: const Text('Log Out', style: TextStyle(color: Colors.white)),
+                      leading: const Icon(
+                        Icons.logout,
+                        color: Colors.redAccent,
+                      ),
+                      title: const Text(
+                        'Log Out',
+                        style: TextStyle(color: Colors.white),
+                      ),
                       onTap: () {
                         Navigator.pop(context);
                         _logout();

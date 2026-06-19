@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:weighing_bridge/components/live_camera_player.dart';
-import 'package:weighing_bridge/services/camera_service.dart';
+import 'package:spider_weighbridge/components/live_camera_player.dart';
+import 'package:spider_weighbridge/services/camera_service.dart';
 
 class CameraGridView extends StatelessWidget {
   final List<CameraConfig> cameras;
@@ -50,6 +49,7 @@ class CameraGridView extends StatelessWidget {
                   LiveCameraPlayer(
                     rtspUrl: camera.rtspUrl,
                     cameraName: camera.name,
+                    ipAddress: camera.ipAddress,
                     paused: allStreamsPaused,
                   ),
                   Positioned(
@@ -77,11 +77,7 @@ class CameraGridView extends StatelessWidget {
                       ),
                       child: const Row(
                         children: [
-                          Icon(
-                            Icons.link,
-                            color: Colors.tealAccent,
-                            size: 12,
-                          ),
+                          Icon(Icons.link, color: Colors.tealAccent, size: 12),
                           SizedBox(width: 6),
                         ],
                       ),

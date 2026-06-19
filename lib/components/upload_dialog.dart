@@ -10,50 +10,61 @@ import '../services/ocr_service.dart';
 /// Can be easily attached or detached from any snapshot capture point.
 Future<void> showUploadDialog({
   required BuildContext context,
-  required String imagePath,
+  String? frontImagePath,
+  String? backImagePath,
   required String currentWeight,
   required String requestID,
   required String scaleName,
   required String subdomain,
   required String recordType,
   required String scaleStockId,
+  required String recordStage,
+  required String moduleType,
 }) async {
   return showDialog<void>(
     context: context,
     barrierDismissible: false,
     builder: (BuildContext context) {
       return UploadDialog(
-        imagePath: imagePath,
+        frontImagePath: frontImagePath,
+        backImagePath: backImagePath,
         currentWeight: currentWeight,
         requestID: requestID,
         scaleName: scaleName,
         scaleStockId: scaleStockId,
         recordType: recordType,
         subdomain: subdomain,
+        recordStage: recordStage,
+        moduleType: moduleType,
       );
     },
   );
 }
 
 class UploadDialog extends StatefulWidget {
-  final String imagePath;
+  final String? frontImagePath;
+  final String? backImagePath;
   final String currentWeight;
   final String requestID;
   final String scaleName;
   final String scaleStockId;
   final String recordType;
-
   final String subdomain;
+  final String recordStage;
+  final String moduleType;
 
   const UploadDialog({
     super.key,
-    required this.imagePath,
+    this.frontImagePath,
+    this.backImagePath,
     required this.currentWeight,
     required this.requestID,
     required this.scaleName,
     required this.scaleStockId,
     required this.recordType,
     required this.subdomain,
+    required this.recordStage,
+    required this.moduleType,
   });
 
   @override
@@ -83,13 +94,16 @@ class _UploadDialogState extends State<UploadDialog> {
   }
 
   void _runBackgroundOcr() async {
+    final ocrPath = widget.frontImagePath ?? widget.backImagePath;
+    if (ocrPath == null) return;
+
     setState(() {
       _isOcrRunning = true;
       _ocrError = null;
     });
 
     try {
-      final result = await OcrService().scanImage(widget.imagePath);
+      final result = await OcrService().scanImage(ocrPath);
 
       await LoggerService().log(
         "Background OCR complete. Raw text: '${result.rawText.replaceAll('\n', ' ')}'. "
@@ -132,7 +146,7 @@ class _UploadDialogState extends State<UploadDialog> {
   }
 
   Future<void> _handleUpload() async {
-    if (!_formKey.currentState!.validate()) return;
+    // if (!_formKey.currentState!.validate()) return;
 
     setState(() {
       _isUploading = true;
@@ -140,16 +154,25 @@ class _UploadDialogState extends State<UploadDialog> {
     });
 
     try {
-      await _apiService.uploadScreenshot(
+      var response = await _apiService.uploadScreenshot(
         requestID: widget.requestID,
         subdomain: widget.subdomain,
         weight: widget.currentWeight,
-        imagePath: widget.imagePath,
+        frontImagePath: widget.frontImagePath,
+        backImagePath: widget.backImagePath,
         scaleName: widget.scaleName,
         recordType: widget.recordType,
         scaleStockId: widget.scaleStockId,
+        recordStage: widget.recordStage,
+        moduleType: widget.moduleType,
       );
+      // if (response.data != null) {
+      print("response = = = = => ${response}");
+      LoggerService().log("Response: $response");
 
+      print("response Data = = = = => ${response.data}");
+      LoggerService().log("Response Data: ${response.data}");
+      // }
       if (mounted) {
         Navigator.of(context).pop(); // Close dialog on success
         ScaffoldMessenger.of(context).showSnackBar(
@@ -180,6 +203,76 @@ class _UploadDialogState extends State<UploadDialog> {
         _errorMessage = e.toString().replaceFirst("Exception: ", "");
       });
     }
+  }
+
+  Widget _buildImagePreview({required String path, required String label}) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        height: 130,
+        decoration: BoxDecoration(
+          color: Colors.black,
+          border: Border.all(color: Colors.white.withOpacity(0.05)),
+        ),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            Image.file(File(path), fit: BoxFit.cover),
+            Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [Colors.transparent, Colors.black.withOpacity(0.75)],
+                ),
+              ),
+            ),
+            Positioned(
+              bottom: 8,
+              left: 8,
+              right: 8,
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.greenAccent.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(4),
+                      border: Border.all(
+                        color: Colors.greenAccent.withOpacity(0.4),
+                      ),
+                    ),
+                    child: Text(
+                      label,
+                      style: GoogleFonts.inter(
+                        color: Colors.greenAccent,
+                        fontSize: 9,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      p.basename(path),
+                      style: GoogleFonts.inter(
+                        color: Colors.white54,
+                        fontSize: 9,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -231,59 +324,44 @@ class _UploadDialogState extends State<UploadDialog> {
                 ),
                 const SizedBox(height: 24),
 
-                // Snapshot preview thumbnail
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(16),
-                  child: Container(
-                    height: 140,
-                    decoration: BoxDecoration(
-                      color: Colors.black,
-                      border: Border.all(color: Colors.white.withOpacity(0.05)),
-                    ),
-                    child: Stack(
-                      fit: StackFit.expand,
-                      children: [
-                        Image.file(File(widget.imagePath), fit: BoxFit.cover),
-                        Container(
+                // Snapshot preview thumbnails
+                Row(
+                  children: [
+                    // Front image
+                    if (widget.frontImagePath != null)
+                      Expanded(
+                        child: _buildImagePreview(
+                          path: widget.frontImagePath!,
+                          label: 'FRONT',
+                        ),
+                      ),
+                    if (widget.frontImagePath != null && widget.backImagePath != null)
+                      const SizedBox(width: 8),
+                    if (widget.backImagePath != null)
+                      Expanded(
+                        child: _buildImagePreview(
+                          path: widget.backImagePath!,
+                          label: 'BACK',
+                        ),
+                      ),
+                    if (widget.frontImagePath == null && widget.backImagePath == null)
+                      Expanded(
+                        child: Container(
+                          height: 130,
                           decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topCenter,
-                              end: Alignment.bottomCenter,
-                              colors: [
-                                Colors.transparent,
-                                Colors.black.withOpacity(0.7),
-                              ],
+                            color: Colors.black.withOpacity(0.3),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.white.withOpacity(0.05)),
+                          ),
+                          child: Center(
+                            child: Text(
+                              "No images captured",
+                              style: GoogleFonts.inter(color: Colors.white38, fontSize: 12),
                             ),
                           ),
                         ),
-                        Positioned(
-                          bottom: 12,
-                          left: 12,
-                          right: 12,
-                          child: Row(
-                            children: [
-                              const Icon(
-                                Icons.photo_library_outlined,
-                                color: Colors.white70,
-                                size: 14,
-                              ),
-                              const SizedBox(width: 6),
-                              Expanded(
-                                child: Text(
-                                  p.basename(widget.imagePath),
-                                  style: GoogleFonts.inter(
-                                    color: Colors.white70,
-                                    fontSize: 11,
-                                  ),
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+                      ),
+                  ],
                 ),
                 const SizedBox(height: 20),
 

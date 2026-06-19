@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:weighing_bridge/services/camera_service.dart';
+import 'package:spider_weighbridge/services/camera_service.dart';
 import 'camera_management/add_camera_dialog.dart';
 import 'camera_management/camera_grid_view.dart';
 
@@ -54,12 +54,21 @@ class _CameraManagementScreenState extends State<CameraManagementScreen> {
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: const Color(0xFF1A1F25),
-        title: const Text('Remove Camera?', style: TextStyle(color: Colors.white)),
-        content: Text('Are you sure you want to remove "${camera.name}"?', style: const TextStyle(color: Colors.white70)),
+        title: const Text(
+          'Remove Camera?',
+          style: TextStyle(color: Colors.white),
+        ),
+        content: Text(
+          'Are you sure you want to remove "${camera.name}"?',
+          style: const TextStyle(color: Colors.white70),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel', style: TextStyle(color: Colors.white54)),
+            child: const Text(
+              'Cancel',
+              style: TextStyle(color: Colors.white54),
+            ),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
@@ -80,29 +89,51 @@ class _CameraManagementScreenState extends State<CameraManagementScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('IP Camera Management', style: GoogleFonts.inter(fontWeight: FontWeight.bold)),
+        title: Text(
+          'IP Camera Management',
+          style: GoogleFonts.inter(fontWeight: FontWeight.bold),
+        ),
         backgroundColor: const Color(0xFF1A1F25),
         actions: [
           if (_cameras.isNotEmpty) ...[
             ElevatedButton.icon(
-              onPressed: () => setState(() => _allStreamsPaused = !_allStreamsPaused),
-              icon: Icon(_allStreamsPaused ? Icons.play_arrow_rounded : Icons.pause_rounded, size: 18),
-              label: Text(_allStreamsPaused ? 'STREAM ALL' : 'PAUSE ALL', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 13)),
+              onPressed: () =>
+                  setState(() => _allStreamsPaused = !_allStreamsPaused),
+              icon: Icon(
+                _allStreamsPaused
+                    ? Icons.play_arrow_rounded
+                    : Icons.pause_rounded,
+                size: 18,
+              ),
+              label: Text(
+                _allStreamsPaused ? 'STREAM ALL' : 'PAUSE ALL',
+                style: GoogleFonts.inter(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 13,
+                ),
+              ),
               style: ElevatedButton.styleFrom(
-                backgroundColor: _allStreamsPaused ? Colors.greenAccent.shade700 : Colors.orangeAccent.shade700,
+                backgroundColor: _allStreamsPaused
+                    ? Colors.greenAccent.shade700
+                    : Colors.orangeAccent.shade700,
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
             ),
             const SizedBox(width: 16),
           ],
-          IconButton(
-            icon: const Icon(Icons.add_a_photo),
-            tooltip: 'Add New Camera',
-            onPressed: _showAddCameraDialog,
-          ),
-          const SizedBox(width: 16),
+          // IconButton(
+          //   icon: const Icon(Icons.add_a_photo),
+          //   tooltip: 'Add New Camera',
+          //   onPressed: _showAddCameraDialog,
+          // ),
+          // const SizedBox(width: 16),
         ],
       ),
       body: Container(
@@ -114,14 +145,16 @@ class _CameraManagementScreenState extends State<CameraManagementScreen> {
           ),
         ),
         child: _isLoading
-            ? const Center(child: CircularProgressIndicator(color: Colors.greenAccent))
+            ? const Center(
+                child: CircularProgressIndicator(color: Colors.greenAccent),
+              )
             : _cameras.isEmpty
-                ? _buildEmptyState()
-                : CameraGridView(
-                    cameras: _cameras,
-                    allStreamsPaused: _allStreamsPaused,
-                    onDeleteCamera: _deleteCamera,
-                  ),
+            ? _buildEmptyState()
+            : CameraGridView(
+                cameras: _cameras,
+                allStreamsPaused: _allStreamsPaused,
+                onDeleteCamera: _deleteCamera,
+              ),
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _showAddCameraDialog,
@@ -138,11 +171,25 @@ class _CameraManagementScreenState extends State<CameraManagementScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.videocam_off_outlined, size: 80, color: Colors.white.withOpacity(0.2)),
+          Icon(
+            Icons.videocam_off_outlined,
+            size: 80,
+            color: Colors.white.withOpacity(0.2),
+          ),
           const SizedBox(height: 16),
-          Text('No IP Cameras Added Yet', style: GoogleFonts.inter(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white70)),
+          Text(
+            'No IP Cameras Added Yet',
+            style: GoogleFonts.inter(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: Colors.white70,
+            ),
+          ),
           const SizedBox(height: 8),
-          Text('Click below to add a network camera and monitor live feeds.', style: GoogleFonts.inter(color: Colors.white54)),
+          Text(
+            'Click below to add a network camera and monitor live feeds.',
+            style: GoogleFonts.inter(color: Colors.white54),
+          ),
           const SizedBox(height: 24),
           ElevatedButton.icon(
             onPressed: _showAddCameraDialog,
@@ -152,7 +199,9 @@ class _CameraManagementScreenState extends State<CameraManagementScreen> {
               backgroundColor: Colors.greenAccent.shade700,
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
           ),
         ],

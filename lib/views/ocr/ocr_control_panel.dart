@@ -2,7 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:path/path.dart' as p;
-import 'package:weighing_bridge/services/ocr_service.dart';
+import 'package:spider_weighbridge/services/ocr_service.dart';
 import 'ocr_setup_guide.dart';
 import 'ocr_shared_widgets.dart';
 
@@ -38,12 +38,14 @@ class OcrControlPanel extends StatelessWidget {
         buildSectionCard(child: _buildConnectionToggle()),
         const SizedBox(height: 16),
         buildSectionCard(
-            title: 'OCR RECOGNITION ENGINE',
-            child: _buildEngineSelector()),
+          title: 'OCR RECOGNITION ENGINE',
+          child: _buildEngineSelector(),
+        ),
         const SizedBox(height: 16),
         buildSectionCard(
-            title: 'SOURCE SNAPSHOT IMAGE',
-            child: _buildImageSection()),
+          title: 'SOURCE SNAPSHOT IMAGE',
+          child: _buildImageSection(),
+        ),
       ],
     );
   }
@@ -73,9 +75,14 @@ class OcrControlPanel extends StatelessWidget {
           color: ocrService.isConnected ? Colors.greenAccent : Colors.white54,
         ),
       ),
-      title: Text('Connect OCR to System',
-          style: GoogleFonts.inter(
-              color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
+      title: Text(
+        'Connect OCR to System',
+        style: GoogleFonts.inter(
+          color: Colors.white,
+          fontWeight: FontWeight.bold,
+          fontSize: 15,
+        ),
+      ),
       subtitle: Text(
         ocrService.isConnected
             ? 'OCR is connected globally. Dashboard snapshot capture will auto-trigger text parsing.'
@@ -99,12 +106,20 @@ class OcrControlPanel extends StatelessWidget {
             border: Border.all(color: Colors.white.withOpacity(0.05)),
           ),
           padding: const EdgeInsets.all(4),
-          child: Row(children: [
-            _buildEngineTab(
-                OcrEngineType.simulation, 'Simulation', Icons.auto_awesome),
-            _buildEngineTab(
-                OcrEngineType.tesseract, 'Tesseract OCR', Icons.terminal),
-          ]),
+          child: Row(
+            children: [
+              _buildEngineTab(
+                OcrEngineType.simulation,
+                'Simulation',
+                Icons.auto_awesome,
+              ),
+              _buildEngineTab(
+                OcrEngineType.tesseract,
+                'Tesseract OCR',
+                Icons.terminal,
+              ),
+            ],
+          ),
         ),
         if (ocrService.activeEngine == OcrEngineType.tesseract) ...[
           const SizedBox(height: 16),
@@ -133,17 +148,25 @@ class OcrControlPanel extends StatelessWidget {
                   : Colors.transparent,
             ),
           ),
-          child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-            Icon(icon,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                icon,
                 color: isSelected ? Colors.greenAccent : Colors.white38,
-                size: 14),
-            const SizedBox(width: 6),
-            Text(label,
+                size: 14,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                label,
                 style: GoogleFonts.inter(
-                    color: isSelected ? Colors.white : Colors.white38,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 11)),
-          ]),
+                  color: isSelected ? Colors.white : Colors.white38,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 11,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -159,28 +182,32 @@ class OcrControlPanel extends StatelessWidget {
             : _buildSelectedImagePreview(),
         const SizedBox(height: 16),
         ElevatedButton.icon(
-          onPressed:
-              selectedImagePath == null || isScanning ? null : onRunOcr,
+          onPressed: selectedImagePath == null || isScanning ? null : onRunOcr,
           icon: isScanning
               ? const SizedBox(
                   width: 16,
                   height: 16,
                   child: CircularProgressIndicator(
-                      color: Colors.black, strokeWidth: 2))
+                    color: Colors.black,
+                    strokeWidth: 2,
+                  ),
+                )
               : const Icon(Icons.document_scanner_outlined, size: 18),
           label: Text(
             isScanning ? 'RECOGNIZING TEXT...' : 'SCAN SNAPSHOT NOW',
             style: GoogleFonts.inter(
-                fontWeight: FontWeight.bold,
-                fontSize: 13,
-                letterSpacing: 1),
+              fontWeight: FontWeight.bold,
+              fontSize: 13,
+              letterSpacing: 1,
+            ),
           ),
           style: ElevatedButton.styleFrom(
             backgroundColor: Colors.greenAccent.shade700,
             foregroundColor: Colors.white,
             padding: const EdgeInsets.symmetric(vertical: 18),
             shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12)),
+              borderRadius: BorderRadius.circular(12),
+            ),
             elevation: 4,
           ),
         ),
@@ -199,97 +226,126 @@ class OcrControlPanel extends StatelessWidget {
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: Colors.white.withOpacity(0.1)),
         ),
-        child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.greenAccent.withOpacity(0.05),
-              shape: BoxShape.circle,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.greenAccent.withOpacity(0.05),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.cloud_upload_outlined,
+                color: Colors.greenAccent,
+                size: 28,
+              ),
             ),
-            child: const Icon(Icons.cloud_upload_outlined,
-                color: Colors.greenAccent, size: 28),
-          ),
-          const SizedBox(height: 12),
-          Text('Upload local snapshot image',
+            const SizedBox(height: 12),
+            Text(
+              'Upload local snapshot image',
               style: GoogleFonts.inter(
-                  color: Colors.white,
-                  fontSize: 13,
-                  fontWeight: FontWeight.bold)),
-          const SizedBox(height: 4),
-          Text('PNG, JPG, JPEG supported',
-              style: GoogleFonts.inter(color: Colors.white38, fontSize: 11)),
-        ]),
+                color: Colors.white,
+                fontSize: 13,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'PNG, JPG, JPEG supported',
+              style: GoogleFonts.inter(color: Colors.white38, fontSize: 11),
+            ),
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildSelectedImagePreview() {
-    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-      Stack(alignment: Alignment.center, children: [
-        ClipRRect(
-          borderRadius: BorderRadius.circular(16),
-          child: Container(
-            height: 180,
-            width: double.infinity,
-            color: Colors.black54,
-            child: Image.file(File(selectedImagePath!), fit: BoxFit.cover),
-          ),
-        ),
-        if (isScanning)
-          Positioned.fill(
-            child: AnimatedBuilder(
-              animation: scannerAnimationController,
-              builder: (context, child) => Stack(children: [
-                Positioned(
-                  top: 180 * scannerValue.value - 2,
-                  left: 0,
-                  right: 0,
-                  child: Container(
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: Colors.greenAccent,
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.greenAccent.withOpacity(0.8),
-                          blurRadius: 12,
-                          spreadRadius: 3,
-                        )
-                      ],
-                    ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Stack(
+          alignment: Alignment.center,
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(16),
+              child: Container(
+                height: 180,
+                width: double.infinity,
+                color: Colors.black54,
+                child: Image.file(File(selectedImagePath!), fit: BoxFit.cover),
+              ),
+            ),
+            if (isScanning)
+              Positioned.fill(
+                child: AnimatedBuilder(
+                  animation: scannerAnimationController,
+                  builder: (context, child) => Stack(
+                    children: [
+                      Positioned(
+                        top: 180 * scannerValue.value - 2,
+                        left: 0,
+                        right: 0,
+                        child: Container(
+                          height: 4,
+                          decoration: BoxDecoration(
+                            color: Colors.greenAccent,
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.greenAccent.withOpacity(0.8),
+                                blurRadius: 12,
+                                spreadRadius: 3,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      Container(color: Colors.black.withOpacity(0.15)),
+                    ],
                   ),
                 ),
-                Container(color: Colors.black.withOpacity(0.15)),
-              ]),
+              ),
+            Positioned(
+              top: 8,
+              right: 8,
+              child: CircleAvatar(
+                backgroundColor: Colors.black.withOpacity(0.6),
+                child: IconButton(
+                  icon: const Icon(Icons.close, color: Colors.white, size: 18),
+                  onPressed: isScanning ? null : onClearImage,
+                ),
+              ),
             ),
-          ),
-        Positioned(
-          top: 8,
-          right: 8,
-          child: CircleAvatar(
-            backgroundColor: Colors.black.withOpacity(0.6),
-            child: IconButton(
-              icon: const Icon(Icons.close, color: Colors.white, size: 18),
-              onPressed: isScanning ? null : onClearImage,
+          ],
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                p.basename(selectedImagePath!),
+                style: GoogleFonts.robotoMono(
+                  color: Colors.white54,
+                  fontSize: 11,
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
-          ),
+            TextButton.icon(
+              onPressed: isScanning ? null : onPickImage,
+              icon: const Icon(Icons.sync, size: 14, color: Colors.greenAccent),
+              label: Text(
+                'Change',
+                style: GoogleFonts.inter(
+                  color: Colors.greenAccent,
+                  fontSize: 12,
+                ),
+              ),
+            ),
+          ],
         ),
-      ]),
-      const SizedBox(height: 12),
-      Row(children: [
-        Expanded(
-          child: Text(p.basename(selectedImagePath!),
-              style:
-                  GoogleFonts.robotoMono(color: Colors.white54, fontSize: 11),
-              overflow: TextOverflow.ellipsis),
-        ),
-        TextButton.icon(
-          onPressed: isScanning ? null : onPickImage,
-          icon: const Icon(Icons.sync, size: 14, color: Colors.greenAccent),
-          label: Text('Change',
-              style:
-                  GoogleFonts.inter(color: Colors.greenAccent, fontSize: 12)),
-        ),
-      ]),
-    ]);
+      ],
+    );
   }
 }

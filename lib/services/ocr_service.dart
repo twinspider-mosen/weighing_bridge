@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:spider_weighbridge/services/logger_service.dart';
 
 /// Enum representing the active OCR engine type.
 enum OcrEngineType { simulation, tesseract }
@@ -285,6 +286,7 @@ class OcrService extends ChangeNotifier {
       notifyListeners();
     } catch (e) {
       debugPrint("Failed to initialize OCR settings: $e");
+      LoggerService().log("Failed to initialize OCR settings: $e");
     }
   }
 

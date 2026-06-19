@@ -14,6 +14,7 @@ class LiveCameraPlayer extends StatefulWidget {
   final bool showHeader;
   final bool paused;
   final bool showPauseButton;
+  final String? ipAddress;
 
   /// Called whenever the zoom level changes (pinch, programmatic, etc.)
   final ValueChanged<double>? onZoomChanged;
@@ -22,6 +23,7 @@ class LiveCameraPlayer extends StatefulWidget {
     super.key,
     required this.rtspUrl,
     required this.cameraName,
+    this.ipAddress,
     this.showHeader = true,
     this.paused = false,
     this.showPauseButton = true,
@@ -302,7 +304,9 @@ class LiveCameraPlayerState extends State<LiveCameraPlayer> {
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
-                              widget.cameraName,
+                              widget.ipAddress != null
+                                  ? "${widget.cameraName} (${widget.ipAddress})"
+                                  : widget.cameraName,
                               style: GoogleFonts.inter(
                                 color: Colors.white,
                                 fontSize: 14,

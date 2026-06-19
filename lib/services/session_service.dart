@@ -1,12 +1,11 @@
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:weighing_bridge/model/user_model.dart';
+import 'package:spider_weighbridge/model/user_model.dart';
 
 class SessionService {
   static const String _usersKey = 'available_users';
   static const String _activeTokenKey = 'active_token';
   static const String _activeUserKey = 'active_user';
-  static const String _activeSubdomainKey = 'active_subdomain';
 
   /// Saves a user session. Overwrites active user but keeps existing users in hash.
   static Future<void> saveUser(UserModel user) async {
@@ -22,7 +21,7 @@ class SessionService {
     if (usersJson != null && usersJson.isNotEmpty) {
       usersMap = json.decode(usersJson);
     }
-    
+
     usersMap[user.id] = user.toMap();
     await prefs.setString(_usersKey, json.encode(usersMap));
   }
@@ -44,7 +43,7 @@ class SessionService {
   /// Removes a user. If it's the active user, clears the active session.
   static Future<void> removeUser(String emailId) async {
     final prefs = await SharedPreferences.getInstance();
-    
+
     // Update hash
     final String? usersJson = prefs.getString(_usersKey);
     if (usersJson != null && usersJson.isNotEmpty) {
@@ -66,7 +65,7 @@ class SessionService {
     final activeUser = await getActiveUser();
     if (activeUser != null) {
       await removeUser(activeUser.id);
-      
+
       final users = await getAvailableUsers();
       if (users.isNotEmpty) {
         // Automatically switch to the next available user

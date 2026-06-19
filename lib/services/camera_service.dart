@@ -1,11 +1,11 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:weighing_bridge/components/live_camera_player.dart';
-import 'package:weighing_bridge/components/upload_dialog.dart';
-import 'package:weighing_bridge/services/logger_service.dart';
-import 'package:weighing_bridge/services/ocr_service.dart';
-import 'package:weighing_bridge/services/upload_service.dart';
+import 'package:spider_weighbridge/components/live_camera_player.dart';
+import 'package:spider_weighbridge/components/upload_dialog.dart';
+import 'package:spider_weighbridge/services/logger_service.dart';
+import 'package:spider_weighbridge/services/ocr_service.dart';
+import 'package:spider_weighbridge/services/upload_service.dart';
 
 class CameraConfig {
   final String id;
@@ -93,7 +93,8 @@ class CameraStorageService {
 class CameraCaptureService {
   static Future<void> captureAndHandle({
     required BuildContext context,
-    required GlobalKey<LiveCameraPlayerState> cameraPlayerKey,
+    GlobalKey<LiveCameraPlayerState>? frontCameraKey,
+    GlobalKey<LiveCameraPlayerState>? backCameraKey,
     bool autoUpload = false,
     required bool uploadOnCapture,
 
@@ -106,37 +107,54 @@ class CameraCaptureService {
 
     required String recordType,
     required String scaleStockId,
+    required String recordStage,
+    required String moduleType,
 
     required Function(bool loading) onLoadingChanged,
   }) async {
-    String? path;
+    String? frontPath;
+    String? backPath;
 
-    try {
-      path = await cameraPlayerKey.currentState?.captureSnapshot();
-    } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            backgroundColor: Colors.red.shade800,
-            content: Row(
-              children: [
-                const Icon(Icons.error_outline),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    "Capture Error: $e",
-                    style: TextStyle(color: Colors.white),
+    if (frontCameraKey != null) {
+      try {
+        frontPath = await frontCameraKey.currentState?.captureSnapshot();
+      } catch (e) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              backgroundColor: Colors.red.shade800,
+              content: Row(
+                children: [
+                  const Icon(Icons.error_outline),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      "Front Camera Capture Error: $e",
+                      style: const TextStyle(color: Colors.white),
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-        );
+          );
+        }
+        return;
       }
-      return;
     }
 
-    if (path == null || !context.mounted) return;
+    // Capture back image silently (optional, don't fail whole operation)
+    if (backCameraKey != null) {
+      try {
+        backPath = await backCameraKey.currentState?.captureSnapshot();
+      } catch (e) {
+        await LoggerService().log(
+          "Back camera capture failed (non-critical)",
+          e,
+        );
+      }
+    }
+
+    if ((frontPath == null && backPath == null) || !context.mounted) return;
 
     onLoadingChanged(true);
 
@@ -144,30 +162,47 @@ class CameraCaptureService {
       if (uploadOnCapture) {
         if (autoUpload) {
           await UploadService.uploadSnapshot(
-            imagePath: path,
-            currentWeight: "$currentWeight $unit",
+            frontImagePath: frontPath,
+            backImagePath: backPath,
+            currentWeight: "$currentWeight",
             requestID: requestID,
             scaleName: scaleName,
             subdomain: subdomain,
-
             recordType: recordType,
             scaleStockId: scaleStockId,
+            recordStage: recordStage,
+            moduleType: moduleType,
           );
         } else {
           await showUploadDialog(
             context: context,
-            imagePath: path,
-            currentWeight: "$currentWeight $unit",
+            frontImagePath: frontPath,
+            backImagePath: backPath,
+            currentWeight: currentWeight,
             requestID: requestID,
             scaleName: scaleName,
             subdomain: subdomain,
-
             recordType: recordType,
             scaleStockId: scaleStockId,
+            recordStage: recordStage,
+            moduleType: moduleType,
           );
         }
       } else {
-        await _handleDirectSave(context: context, path: path);
+        if (frontPath != null) {
+          await _handleDirectSave(
+            context: context,
+            path: frontPath,
+            label: "Front snapshot",
+          );
+        }
+        if (backPath != null && context.mounted) {
+          await _handleDirectSave(
+            context: context,
+            path: backPath,
+            label: "Back snapshot",
+          );
+        }
       }
     } finally {
       onLoadingChanged(false);
@@ -177,6 +212,7 @@ class CameraCaptureService {
   static Future<void> _handleDirectSave({
     required BuildContext context,
     required String path,
+    String label = 'Snapshot',
   }) async {
     OcrResult? res;
     String? err;
@@ -206,10 +242,10 @@ class CameraCaptureService {
       SnackBar(
         backgroundColor: Colors.green.shade800,
         content: Text(
-          "Snapshot saved to disk:\n$path"
+          "$label saved to disk:\n$path"
           "${res != null ? "\nAUTOMATIC OCR: ${isPlate ? "Recognized Plate: ${res.labeledTexts["Car Number Plate"]}" : "Scanned Text Detected"}" : ""}"
           "${err != null ? "\nOCR Scan Failed: $err" : ""}",
-          style: TextStyle(color: Colors.white),
+          style: const TextStyle(color: Colors.white),
         ),
       ),
     );

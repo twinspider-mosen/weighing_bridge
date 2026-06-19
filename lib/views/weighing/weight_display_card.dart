@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:weighing_bridge/services/scale_service.dart';
+import 'package:spider_weighbridge/services/scale_service.dart';
+import 'weighing_layout_helper.dart';
 
 class WeightDisplayCard extends StatelessWidget {
   final String currentWeight;
@@ -16,21 +17,30 @@ class WeightDisplayCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final layout = WeighingLayoutHelper(context);
+    final double horizontalPadding = layout.isCompact ? 24.0 : 48.0;
+    final double verticalPadding = layout.isCompact ? 20.0 : 32.0;
+    final double weightFontSize = layout.isCompact ? 56.0 : 96.0;
+    final double unitFontSize = layout.isCompact ? 20.0 : 32.0;
+
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 60, vertical: 40),
+            padding: EdgeInsets.symmetric(
+              horizontal: horizontalPadding,
+              vertical: verticalPadding,
+            ),
             decoration: BoxDecoration(
               color: Colors.black.withOpacity(0.4),
-              borderRadius: BorderRadius.circular(30),
+              borderRadius: BorderRadius.circular(layout.isCompact ? 16 : 24),
               border: Border.all(color: Colors.white.withOpacity(0.05)),
               boxShadow: [
                 BoxShadow(
                   color: Colors.greenAccent.withOpacity(0.05),
-                  blurRadius: 50,
-                  spreadRadius: 10,
+                  blurRadius: 30,
+                  spreadRadius: 5,
                 ),
               ],
             ),
@@ -39,25 +49,28 @@ class WeightDisplayCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.baseline,
               textBaseline: TextBaseline.alphabetic,
               children: [
-                Text(
-                  currentWeight,
-                  style: GoogleFonts.robotoMono(
-                    fontSize: 110,
-                    fontWeight: FontWeight.w500,
-                    color: Colors.greenAccent,
-                    shadows: [
-                      Shadow(
-                        color: Colors.greenAccent.withOpacity(0.5),
-                        blurRadius: 20,
-                      ),
-                    ],
+                Flexible(
+                  child: Text(
+                    currentWeight,
+                    style: GoogleFonts.robotoMono(
+                      fontSize: weightFontSize,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.greenAccent,
+                      shadows: [
+                        Shadow(
+                          color: Colors.greenAccent.withOpacity(0.5),
+                          blurRadius: 15,
+                        ),
+                      ],
+                    ),
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                const SizedBox(width: 20),
+                SizedBox(width: layout.isCompact ? 8.0 : 16.0),
                 Text(
                   unit,
                   style: GoogleFonts.inter(
-                    fontSize: 36,
+                    fontSize: unitFontSize,
                     fontWeight: FontWeight.bold,
                     color: Colors.white.withOpacity(0.5),
                   ),
@@ -67,12 +80,12 @@ class WeightDisplayCard extends StatelessWidget {
           ),
           if (activeConfig != null)
             Padding(
-              padding: const EdgeInsets.only(top: 24),
+              padding: EdgeInsets.only(top: layout.isCompact ? 12 : 20),
               child: Text(
                 'SIGNAL: ${activeConfig.toString()}',
                 style: GoogleFonts.inter(
-                  fontSize: 12,
-                  letterSpacing: 2,
+                  fontSize: 11,
+                  letterSpacing: 1.5,
                   color: Colors.white24,
                 ),
               ),

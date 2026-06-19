@@ -15,7 +15,7 @@ class LoggerService {
   Future<void> init() async {
     try {
       final directory = await getApplicationDocumentsDirectory();
-      _logFile = File('${directory.path}/weighing_bridge_errors.log');
+      _logFile = File('${directory.path}/spider_weighbridge_errors.log');
       await log('Logger initialized. Log file path: ${_logFile!.path}');
     } catch (e) {
       print('Failed to initialize logger: $e');
@@ -23,8 +23,14 @@ class LoggerService {
   }
 
   /// Appends a new diagnostic or error log entry with a timestamp.
-  Future<void> log(String message, [dynamic error, StackTrace? stackTrace]) async {
-    final timestamp = DateFormat('yyyy-MM-dd HH:mm:ss.SSS').format(DateTime.now());
+  Future<void> log(
+    String message, [
+    dynamic error,
+    StackTrace? stackTrace,
+  ]) async {
+    final timestamp = DateFormat(
+      'yyyy-MM-dd HH:mm:ss.SSS',
+    ).format(DateTime.now());
     var logLine = '[$timestamp] $message';
     if (error != null) {
       logLine += ' | Error: $error';
@@ -37,9 +43,13 @@ class LoggerService {
     try {
       if (_logFile == null) {
         final directory = await getApplicationDocumentsDirectory();
-        _logFile = File('${directory.path}/weighing_bridge_errors.log');
+        _logFile = File('${directory.path}/spider_weighbridge_errors.log');
       }
-      await _logFile!.writeAsString('$logLine\n', mode: FileMode.append, flush: true);
+      await _logFile!.writeAsString(
+        '$logLine\n',
+        mode: FileMode.append,
+        flush: true,
+      );
     } catch (e) {
       print('Failed to write to log file: $e');
     }
@@ -50,7 +60,7 @@ class LoggerService {
     try {
       if (_logFile == null) {
         final directory = await getApplicationDocumentsDirectory();
-        _logFile = File('${directory.path}/weighing_bridge_errors.log');
+        _logFile = File('${directory.path}/spider_weighbridge_errors.log');
       }
       if (await _logFile!.exists()) {
         return await _logFile!.readAsString();
@@ -66,7 +76,7 @@ class LoggerService {
     try {
       if (_logFile == null) {
         final directory = await getApplicationDocumentsDirectory();
-        _logFile = File('${directory.path}/weighing_bridge_errors.log');
+        _logFile = File('${directory.path}/spider_weighbridge_errors.log');
       }
       if (await _logFile!.exists()) {
         await _logFile!.writeAsString('');
@@ -81,7 +91,7 @@ class LoggerService {
   Future<String> getLogFilePath() async {
     if (_logFile == null) {
       final directory = await getApplicationDocumentsDirectory();
-      return '${directory.path}/weighing_bridge_errors.log';
+      return '${directory.path}/spider_weighbridge_errors.log';
     }
     return _logFile!.path;
   }

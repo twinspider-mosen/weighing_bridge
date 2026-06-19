@@ -1,21 +1,19 @@
 import 'package:firebase_core/firebase_core.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:media_kit/media_kit.dart';
-import 'package:weighing_bridge/firebase_options.dart';
-import 'package:weighing_bridge/services/logger_service.dart';
-import 'package:weighing_bridge/services/ocr_service.dart';
-import 'package:weighing_bridge/views/auth/login_screen.dart';
-import 'package:weighing_bridge/views/weighing_screen.dart';
-import 'package:weighing_bridge/services/session_service.dart';
+import 'package:spider_weighbridge/firebase_options.dart';
+import 'package:spider_weighbridge/services/logger_service.dart';
+import 'package:spider_weighbridge/services/ocr_service.dart';
+import 'package:spider_weighbridge/views/auth/login_screen.dart';
+import 'package:spider_weighbridge/views/weighing_screen.dart';
+import 'package:spider_weighbridge/services/session_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Prevent google_fonts from downloading fonts at runtime.
-  // Without this, the app crashes on systems without internet access.
-  GoogleFonts.config.allowRuntimeFetching = false;
+  // Allow google_fonts to fetch fonts at runtime since assets are not local.
+  GoogleFonts.config.allowRuntimeFetching = true;
 
   try {
     await Firebase.initializeApp(

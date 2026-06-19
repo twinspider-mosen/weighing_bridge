@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:weighing_bridge/services/logger_service.dart';
+import 'package:spider_weighbridge/services/logger_service.dart';
 
 /// A premium, custom-styled Log Viewer Screen to view and manage system error logs.
 class LogViewerScreen extends StatefulWidget {
@@ -43,7 +43,11 @@ class _LogViewerScreenState extends State<LogViewerScreen> {
         backgroundColor: const Color(0xFF1E242C),
         title: Text(
           'CLEAR SYSTEM LOGS?',
-          style: GoogleFonts.inter(fontWeight: FontWeight.bold, letterSpacing: 1, color: Colors.redAccent),
+          style: GoogleFonts.inter(
+            fontWeight: FontWeight.bold,
+            letterSpacing: 1,
+            color: Colors.redAccent,
+          ),
         ),
         content: Text(
           'Are you sure you want to delete all cached diagnostic logs? This action cannot be undone.',
@@ -52,12 +56,21 @@ class _LogViewerScreenState extends State<LogViewerScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: Text('CANCEL', style: GoogleFonts.inter(color: Colors.white54)),
+            child: Text(
+              'CANCEL',
+              style: GoogleFonts.inter(color: Colors.white54),
+            ),
           ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent, foregroundColor: Colors.white),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.redAccent,
+              foregroundColor: Colors.white,
+            ),
             onPressed: () => Navigator.pop(context, true),
-            child: Text('CLEAR ALL', style: GoogleFonts.inter(fontWeight: FontWeight.bold)),
+            child: Text(
+              'CLEAR ALL',
+              style: GoogleFonts.inter(fontWeight: FontWeight.bold),
+            ),
           ),
         ],
       ),
@@ -124,15 +137,25 @@ class _LogViewerScreenState extends State<LogViewerScreen> {
           IconButton(
             icon: const Icon(Icons.copy, color: Colors.tealAccent, size: 20),
             tooltip: 'Copy Logs',
-            onPressed: _logsText.isEmpty || _isLoading ? null : _copyToClipboard,
+            onPressed: _logsText.isEmpty || _isLoading
+                ? null
+                : _copyToClipboard,
           ),
           IconButton(
-            icon: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 20),
+            icon: const Icon(
+              Icons.delete_outline,
+              color: Colors.redAccent,
+              size: 20,
+            ),
             tooltip: 'Clear Logs',
             onPressed: _isLoading ? null : _clearLogs,
           ),
           IconButton(
-            icon: const Icon(Icons.refresh, color: Colors.greenAccent, size: 20),
+            icon: const Icon(
+              Icons.refresh,
+              color: Colors.greenAccent,
+              size: 20,
+            ),
             tooltip: 'Refresh Logs',
             onPressed: _isLoading ? null : _loadLogs,
           ),
@@ -149,7 +172,9 @@ class _LogViewerScreenState extends State<LogViewerScreen> {
         ),
         child: SafeArea(
           child: _isLoading
-              ? const Center(child: CircularProgressIndicator(color: Colors.greenAccent))
+              ? const Center(
+                  child: CircularProgressIndicator(color: Colors.greenAccent),
+                )
               : Padding(
                   padding: const EdgeInsets.all(20.0),
                   child: Column(
@@ -157,15 +182,24 @@ class _LogViewerScreenState extends State<LogViewerScreen> {
                     children: [
                       // Log Path Banner
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 12,
+                        ),
                         decoration: BoxDecoration(
                           color: Colors.white.withOpacity(0.02),
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.white.withOpacity(0.06)),
+                          border: Border.all(
+                            color: Colors.white.withOpacity(0.06),
+                          ),
                         ),
                         child: Row(
                           children: [
-                            const Icon(Icons.folder_open_outlined, color: Colors.greenAccent, size: 18),
+                            const Icon(
+                              Icons.folder_open_outlined,
+                              color: Colors.greenAccent,
+                              size: 18,
+                            ),
                             const SizedBox(width: 12),
                             Expanded(
                               child: Column(
@@ -173,12 +207,20 @@ class _LogViewerScreenState extends State<LogViewerScreen> {
                                 children: [
                                   Text(
                                     'LOG FILE DISK PATH',
-                                    style: GoogleFonts.inter(color: Colors.white38, fontSize: 9, fontWeight: FontWeight.bold, letterSpacing: 1),
+                                    style: GoogleFonts.inter(
+                                      color: Colors.white38,
+                                      fontSize: 9,
+                                      fontWeight: FontWeight.bold,
+                                      letterSpacing: 1,
+                                    ),
                                   ),
                                   const SizedBox(height: 2),
                                   SelectableText(
                                     _filePath,
-                                    style: GoogleFonts.robotoMono(color: Colors.white70, fontSize: 11),
+                                    style: GoogleFonts.robotoMono(
+                                      color: Colors.white70,
+                                      fontSize: 11,
+                                    ),
                                   ),
                                 ],
                               ),
@@ -193,7 +235,9 @@ class _LogViewerScreenState extends State<LogViewerScreen> {
                           decoration: BoxDecoration(
                             color: Colors.black.withOpacity(0.4),
                             borderRadius: BorderRadius.circular(16),
-                            border: Border.all(color: Colors.white.withOpacity(0.04)),
+                            border: Border.all(
+                              color: Colors.white.withOpacity(0.04),
+                            ),
                           ),
                           child: ClipRRect(
                             borderRadius: BorderRadius.circular(16),

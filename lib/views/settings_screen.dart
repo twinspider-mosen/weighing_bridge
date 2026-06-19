@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:weighing_bridge/components/action_button.dart';
-import 'package:weighing_bridge/components/custom_text_field.dart';
-import 'package:weighing_bridge/services/settings_service.dart';
-import 'package:weighing_bridge/utils/helper_functions.dart';
+import 'package:spider_weighbridge/components/action_button.dart';
+import 'package:spider_weighbridge/components/custom_text_field.dart';
+import 'package:spider_weighbridge/services/settings_service.dart';
+import 'package:spider_weighbridge/utils/helper_functions.dart';
 
 /// A premium, custom-styled Settings Screen built to match the high-fidelity dark dashboard aesthetic.
 class SettingsScreen extends StatefulWidget {
@@ -18,6 +18,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   final SettingsService _settingsService = SettingsService();
   bool _uploadOnCapture = true;
   bool _requireApprovalForRecords = false;
+  bool _enableFrontCamera = true;
+  bool _enableBackCamera = true;
   bool _isLoading = true;
 
   @override
@@ -29,10 +31,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Future<void> _loadSettings() async {
     final value = await _settingsService.getUploadOnCapture();
     final approvalValue = await _settingsService.getRequireApprovalForRecords();
+    final frontValue = await _settingsService.getEnableFrontCamera();
+    final backValue = await _settingsService.getEnableBackCamera();
     if (mounted) {
       setState(() {
         _uploadOnCapture = value;
         _requireApprovalForRecords = approvalValue;
+        _enableFrontCamera = frontValue;
+        _enableBackCamera = backValue;
         _isLoading = false;
       });
     }
@@ -84,6 +90,62 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 value
                     ? "Settings updated: Approval required for records enabled"
                     : "Settings updated: Approval required for records disabled",
+                style: GoogleFonts.inter(fontWeight: FontWeight.w500),
+              ),
+            ],
+          ),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
+  Future<void> _toggleEnableFrontCamera(bool value) async {
+    setState(() {
+      _enableFrontCamera = value;
+    });
+    await _settingsService.setEnableFrontCamera(value);
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: Colors.teal.shade800,
+          content: Row(
+            children: [
+              const Icon(Icons.check_circle, color: Colors.white, size: 18),
+              const SizedBox(width: 8),
+              Text(
+                value
+                    ? "Settings updated: Front camera enabled"
+                    : "Settings updated: Front camera disabled",
+                style: GoogleFonts.inter(fontWeight: FontWeight.w500),
+              ),
+            ],
+          ),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
+  Future<void> _toggleEnableBackCamera(bool value) async {
+    setState(() {
+      _enableBackCamera = value;
+    });
+    await _settingsService.setEnableBackCamera(value);
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: Colors.teal.shade800,
+          content: Row(
+            children: [
+              const Icon(Icons.check_circle, color: Colors.white, size: 18),
+              const SizedBox(width: 8),
+              Text(
+                value
+                    ? "Settings updated: Back camera enabled"
+                    : "Settings updated: Back camera disabled",
                 style: GoogleFonts.inter(fontWeight: FontWeight.w500),
               ),
             ],
@@ -156,7 +218,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                     return SizedBox();
                                   }
                                   return Text(
-                                    'Name: ${snapshot.data!['scale_id']}      |      Subdomain: ${snapshot.data!['subdomains']}',
+                                    'Name: ${snapshot.data!['scale_name']}      |      Subdomain: ${snapshot.data!['subdomains']}',
                                     style: TextStyle(
                                       color: Colors.grey,
                                       fontWeight: FontWeight.w400,
@@ -172,277 +234,286 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             icon: Icons.edit,
                             color: Colors.greenAccent,
                             onPressed: () async {
-  bool isLoading = false;
+                              bool isLoading = false;
 
-  final TextEditingController nameController =
-      TextEditingController();
+                              final TextEditingController nameController =
+                                  TextEditingController();
 
-  final TextEditingController subdomainController =
-      TextEditingController();
+                              final TextEditingController subdomainController =
+                                  TextEditingController();
 
-  final pref = await SharedPreferences.getInstance();
+                              final pref =
+                                  await SharedPreferences.getInstance();
 
-  nameController.text =
-      pref.getString('scale_id') ?? '';
+                              nameController.text =
+                                  pref.getString('scale_name') ?? '';
 
-  List<String> subdomains =
-      pref.getStringList('subdomains') ?? [];
+                              List<String> subdomains =
+                                  pref.getStringList('subdomains') ?? [];
 
-  final result = await showDialog(
-    context: context,
-    builder: (_) {
-      return StatefulBuilder(
-        builder: (context, setState) {
-          return AlertDialog(
-            backgroundColor: const Color(0xFF1A1F25),
-
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
-            ),
-
-            title: Text(
-              'System Details',
-              style: GoogleFonts.inter(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-
-            content: SizedBox(
-              width: 500,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment:
-                    CrossAxisAlignment.start,
-                children: [
-
-                  /// SCALE ID
-                  CustomTextField(
-                    controller: nameController,
-                    labelText: "Scale ID",
-                  ),
-
-                  const SizedBox(height: 20),
-
-                  /// ADD SUBDOMAIN
-                  Text(
-                    "Subdomains",
-                    style: GoogleFonts.inter(
-                      color: Colors.white70,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-
-                  const SizedBox(height: 10),
-
-                  Row(
-                    children: [
-                      Expanded(
-                        child: CustomTextField(
-                          controller:
-                              subdomainController,
-                          labelText:
-                              "Add Subdomain",
-                        ),
-                      ),
-
-                      const SizedBox(width: 8),
-
-                      IconButton(
-                        icon: const Icon(
-                          Icons.add_circle,
-                          color: Colors.greenAccent,
-                          size: 30,
-                        ),
-                        onPressed: () {
-                          final value =
-                              subdomainController.text
-                                  .trim();
-
-                          if (value.isEmpty) return;
-
-                          if (!subdomains
-                              .contains(value)) {
-                            setState(() {
-                              subdomains.add(value);
-                            });
-                          }
-
-                          subdomainController.clear();
-                        },
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 20),
-
-                  /// SUBDOMAIN LIST
-                  Container(
-                    constraints:
-                        const BoxConstraints(
-                      maxHeight: 220,
-                    ),
-
-                    child: subdomains.isEmpty
-                        ? Center(
-                            child: Padding(
-                              padding:
-                                  const EdgeInsets.all(
-                                      20),
-                              child: Text(
-                                "No subdomains added",
-                                style:
-                                    GoogleFonts.inter(
-                                  color:
-                                      Colors.white38,
-                                ),
-                              ),
-                            ),
-                          )
-                        : ListView.builder(
-                            shrinkWrap: true,
-                            itemCount:
-                                subdomains.length,
-                            itemBuilder:
-                                (context, index) {
-                              final item =
-                                  subdomains[index];
-
-                              return Container(
-                                margin:
-                                    const EdgeInsets
-                                        .only(
-                                  bottom: 10,
-                                ),
-
-                                padding:
-                                    const EdgeInsets
-                                        .symmetric(
-                                  horizontal: 14,
-                                  vertical: 12,
-                                ),
-
-                                decoration:
-                                    BoxDecoration(
-                                  color: Colors.white
-                                      .withOpacity(
-                                          0.04),
-
-                                  borderRadius:
-                                      BorderRadius
-                                          .circular(
-                                              12),
-
-                                  border: Border.all(
-                                    color: Colors
-                                        .white
-                                        .withOpacity(
-                                            0.08),
-                                  ),
-                                ),
-
-                                child: Row(
-                                  children: [
-                                    const Icon(
-                                      Icons
-                                          .domain_outlined,
-                                      color: Colors
-                                          .greenAccent,
-                                      size: 18,
-                                    ),
-
-                                    const SizedBox(
-                                        width: 10),
-
-                                    Expanded(
-                                      child: Text(
-                                        item,
-                                        style:
-                                            GoogleFonts
-                                                .inter(
-                                          color: Colors
-                                              .white,
-                                          fontSize: 14,
+                              final result = await showDialog(
+                                context: context,
+                                builder: (_) {
+                                  return StatefulBuilder(
+                                    builder: (context, setState) {
+                                      return AlertDialog(
+                                        backgroundColor: const Color(
+                                          0xFF1A1F25,
                                         ),
-                                      ),
-                                    ),
 
-                                    IconButton(
-                                      icon:
-                                          const Icon(
-                                        Icons.delete,
-                                        color:
-                                            Colors.red,
-                                      ),
-                                      onPressed: () {
-                                        setState(() {
-                                          subdomains
-                                              .removeAt(
-                                                  index);
-                                        });
-                                      },
-                                    ),
-                                  ],
-                                ),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            20,
+                                          ),
+                                        ),
+
+                                        title: Text(
+                                          'System Details',
+                                          style: GoogleFonts.inter(
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+
+                                        content: SizedBox(
+                                          width: 500,
+                                          child: Column(
+                                            mainAxisSize: MainAxisSize.min,
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              /// SCALE ID
+                                              CustomTextField(
+                                                controller: nameController,
+                                                labelText: "Scale ID",
+                                              ),
+
+                                              const SizedBox(height: 20),
+
+                                              /// ADD SUBDOMAIN
+                                              Text(
+                                                "Subdomains",
+                                                style: GoogleFonts.inter(
+                                                  color: Colors.white70,
+                                                  fontWeight: FontWeight.w600,
+                                                ),
+                                              ),
+
+                                              const SizedBox(height: 10),
+
+                                              Row(
+                                                children: [
+                                                  Expanded(
+                                                    child: CustomTextField(
+                                                      controller:
+                                                          subdomainController,
+                                                      labelText:
+                                                          "Add Subdomain",
+                                                    ),
+                                                  ),
+
+                                                  const SizedBox(width: 8),
+
+                                                  IconButton(
+                                                    icon: const Icon(
+                                                      Icons.add_circle,
+                                                      color: Colors.greenAccent,
+                                                      size: 30,
+                                                    ),
+                                                    onPressed: () {
+                                                      final value =
+                                                          subdomainController
+                                                              .text
+                                                              .trim();
+
+                                                      if (value.isEmpty) return;
+
+                                                      if (!subdomains.contains(
+                                                        value,
+                                                      )) {
+                                                        setState(() {
+                                                          subdomains.add(value);
+                                                        });
+                                                      }
+
+                                                      subdomainController
+                                                          .clear();
+                                                    },
+                                                  ),
+                                                ],
+                                              ),
+
+                                              const SizedBox(height: 20),
+
+                                              /// SUBDOMAIN LIST
+                                              Container(
+                                                constraints:
+                                                    const BoxConstraints(
+                                                      maxHeight: 220,
+                                                    ),
+
+                                                child: subdomains.isEmpty
+                                                    ? Center(
+                                                        child: Padding(
+                                                          padding:
+                                                              const EdgeInsets.all(
+                                                                20,
+                                                              ),
+                                                          child: Text(
+                                                            "No subdomains added",
+                                                            style:
+                                                                GoogleFonts.inter(
+                                                                  color: Colors
+                                                                      .white38,
+                                                                ),
+                                                          ),
+                                                        ),
+                                                      )
+                                                    : ListView.builder(
+                                                        shrinkWrap: true,
+                                                        itemCount:
+                                                            subdomains.length,
+                                                        itemBuilder: (context, index) {
+                                                          final item =
+                                                              subdomains[index];
+
+                                                          return Container(
+                                                            margin:
+                                                                const EdgeInsets.only(
+                                                                  bottom: 10,
+                                                                ),
+
+                                                            padding:
+                                                                const EdgeInsets.symmetric(
+                                                                  horizontal:
+                                                                      14,
+                                                                  vertical: 12,
+                                                                ),
+
+                                                            decoration: BoxDecoration(
+                                                              color: Colors
+                                                                  .white
+                                                                  .withOpacity(
+                                                                    0.04,
+                                                                  ),
+
+                                                              borderRadius:
+                                                                  BorderRadius.circular(
+                                                                    12,
+                                                                  ),
+
+                                                              border: Border.all(
+                                                                color: Colors
+                                                                    .white
+                                                                    .withOpacity(
+                                                                      0.08,
+                                                                    ),
+                                                              ),
+                                                            ),
+
+                                                            child: Row(
+                                                              children: [
+                                                                const Icon(
+                                                                  Icons
+                                                                      .domain_outlined,
+                                                                  color: Colors
+                                                                      .greenAccent,
+                                                                  size: 18,
+                                                                ),
+
+                                                                const SizedBox(
+                                                                  width: 10,
+                                                                ),
+
+                                                                Expanded(
+                                                                  child: Text(
+                                                                    item,
+                                                                    style: GoogleFonts.inter(
+                                                                      color: Colors
+                                                                          .white,
+                                                                      fontSize:
+                                                                          14,
+                                                                    ),
+                                                                  ),
+                                                                ),
+
+                                                                IconButton(
+                                                                  icon: const Icon(
+                                                                    Icons
+                                                                        .delete,
+                                                                    color: Colors
+                                                                        .red,
+                                                                  ),
+                                                                  onPressed: () {
+                                                                    setState(() {
+                                                                      subdomains
+                                                                          .removeAt(
+                                                                            index,
+                                                                          );
+                                                                    });
+                                                                  },
+                                                                ),
+                                                              ],
+                                                            ),
+                                                          );
+                                                        },
+                                                      ),
+                                              ),
+
+                                              const SizedBox(height: 20),
+
+                                              /// UPDATE BUTTON
+                                              SizedBox(
+                                                width: double.infinity,
+                                                child: ActionButton(
+                                                  label: isLoading
+                                                      ? 'Saving...'
+                                                      : 'Update',
+
+                                                  color: Colors.green,
+
+                                                  isPrimary: true,
+
+                                                  onPressed: () async {
+                                                    setState(() {
+                                                      isLoading = true;
+                                                    });
+
+                                                    await pref.setString(
+                                                      'scale_name',
+                                                      nameController.text
+                                                          .trim(),
+                                                    );
+
+                                                    await pref.setStringList(
+                                                      'subdomains',
+                                                      subdomains,
+                                                    );
+
+                                                    setState(() {
+                                                      isLoading = false;
+                                                    });
+
+                                                    Navigator.pop(
+                                                      context,
+                                                      true,
+                                                    );
+                                                  },
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                  );
+                                },
                               );
+
+                              if (result == true) {
+                                setState(() {});
+                              }
                             },
-                          ),
-                  ),
-
-                  const SizedBox(height: 20),
-
-                  /// UPDATE BUTTON
-                  SizedBox(
-                    width: double.infinity,
-                    child: ActionButton(
-                      label: isLoading
-                          ? 'Saving...'
-                          : 'Update',
-
-                      color: Colors.green,
-
-                      isPrimary: true,
-
-                      onPressed: () async {
-                        setState(() {
-                          isLoading = true;
-                        });
-
-                        await pref.setString(
-                          'scale_id',
-                          nameController.text
-                              .trim(),
-                        );
-
-                        await pref.setStringList(
-                          'subdomains',
-                          subdomains,
-                        );
-
-                        setState(() {
-                          isLoading = false;
-                        });
-
-                        Navigator.pop(
-                          context,
-                          true,
-                        );
-                      },
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
-      );
-    },
-  );
-
-  if (result == true) {
-    setState(() {});
-  }
-},
                             isPrimary: true,
                           ),
                         ],
@@ -483,6 +554,30 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           "Automatically process incoming Firebase stream records without requiring user approval.",
                       enabledIcon: Icons.verified_user_outlined,
                       disabledIcon: Icons.gpp_bad_outlined,
+                    ),
+                    const SizedBox(height: 12),
+                    ReusableSettingTile(
+                      value: _enableFrontCamera,
+                      onChanged: _toggleEnableFrontCamera,
+                      title: "Enable Front Camera",
+                      enabledDescription:
+                          "Show the front vehicle camera feed on the dashboard and capture it for uploading.",
+                      disabledDescription:
+                          "Hide the front vehicle camera feed and skip front camera image capture/upload.",
+                      enabledIcon: Icons.videocam_outlined,
+                      disabledIcon: Icons.videocam_off_outlined,
+                    ),
+                    const SizedBox(height: 12),
+                    ReusableSettingTile(
+                      value: _enableBackCamera,
+                      onChanged: _toggleEnableBackCamera,
+                      title: "Enable Back Camera",
+                      enabledDescription:
+                          "Show the back vehicle camera feed on the dashboard and capture it for uploading.",
+                      disabledDescription:
+                          "Hide the back vehicle camera feed and skip back camera image capture/upload.",
+                      enabledIcon: Icons.videocam_outlined,
+                      disabledIcon: Icons.videocam_off_outlined,
                     ),
 
                     ////
