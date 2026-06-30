@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:spider_weighbridge/components/action_button.dart';
 import 'package:spider_weighbridge/components/custom_text_field.dart';
+import 'package:spider_weighbridge/services/scale_service.dart';
 import 'package:spider_weighbridge/services/settings_service.dart';
 import 'package:spider_weighbridge/utils/helper_functions.dart';
 
@@ -20,6 +21,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _requireApprovalForRecords = false;
   bool _enableFrontCamera = true;
   bool _enableBackCamera = true;
+  ScaleProtocol _scaleProtocol = ScaleProtocol.binaryAutoDetect;
   bool _isLoading = true;
 
   @override
@@ -33,14 +35,43 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final approvalValue = await _settingsService.getRequireApprovalForRecords();
     final frontValue = await _settingsService.getEnableFrontCamera();
     final backValue = await _settingsService.getEnableBackCamera();
+    final protocolValue = await _settingsService.getScaleProtocol();
     if (mounted) {
       setState(() {
         _uploadOnCapture = value;
         _requireApprovalForRecords = approvalValue;
         _enableFrontCamera = frontValue;
         _enableBackCamera = backValue;
+        _scaleProtocol = protocolValue;
         _isLoading = false;
       });
+    }
+  }
+
+  Future<void> _setScaleProtocol(ScaleProtocol protocol) async {
+    setState(() => _scaleProtocol = protocol);
+    await _settingsService.setScaleProtocol(protocol);
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: Colors.teal.shade800,
+          content: Row(
+            children: [
+              const Icon(Icons.check_circle, color: Colors.white, size: 18),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  protocol == ScaleProtocol.csvPlainText
+                      ? 'Protocol set to CSV / Plain-Text. Please disconnect & reconnect the port to apply.'
+                      : 'Protocol set to Binary Auto-Detect. Please disconnect & reconnect the port to apply.',
+                  style: GoogleFonts.inter(fontWeight: FontWeight.w500),
+                ),
+              ),
+            ],
+          ),
+          duration: const Duration(seconds: 5),
+        ),
+      );
     }
   }
 
@@ -580,6 +611,102 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       disabledIcon: Icons.videocam_off_outlined,
                     ),
 
+                    const SizedBox(height: 24),
+                    Text(
+                      "SERIAL SCALE PROTOCOL",
+                      style: GoogleFonts.inter(
+                        color: Colors.white38,
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 1.5,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Scale Protocol Picker Card
+                    reusableCard(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 16,
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(10),
+                                decoration: BoxDecoration(
+                                  color: Colors.blueAccent.withOpacity(0.08),
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: Colors.blueAccent.withOpacity(0.25),
+                                  ),
+                                ),
+                                child: const Icon(
+                                  Icons.settings_input_component_outlined,
+                                  color: Colors.blueAccent,
+                                  size: 24,
+                                ),
+                              ),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Scale Data Protocol',
+                                      style: GoogleFonts.inter(
+                                        color: Colors.white,
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      _scaleProtocol == ScaleProtocol.binaryAutoDetect
+                                          ? 'Binary Auto-Detect: Handles Yaohua (STX/ETX) and Toledo (STX/CR) packet formats. Use for all existing systems.'
+                                          : 'CSV / Plain-Text: Reads comma-separated ASCII lines. Use for PMS-style scales (e.g. Sihala Flour Mill).',
+                                      style: GoogleFonts.inter(
+                                        color: Colors.white38,
+                                        fontSize: 12,
+                                        height: 1.4,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          // Segmented selector
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _ProtocolOption(
+                                  label: 'Binary\nAuto-Detect',
+                                  subtitle: 'Yaohua / Toledo',
+                                  icon: Icons.memory_outlined,
+                                  selected: _scaleProtocol == ScaleProtocol.binaryAutoDetect,
+                                  onTap: () => _setScaleProtocol(ScaleProtocol.binaryAutoDetect),
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: _ProtocolOption(
+                                  label: 'CSV /\nPlain-Text',
+                                  subtitle: 'PMS / Sihala style',
+                                  icon: Icons.format_list_bulleted_outlined,
+                                  selected: _scaleProtocol == ScaleProtocol.csvPlainText,
+                                  onTap: () => _setScaleProtocol(ScaleProtocol.csvPlainText),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+
                     ////
                     const SizedBox(height: 24),
                     ////
@@ -721,6 +848,78 @@ class ReusableSettingTile extends StatelessWidget {
 
           value: value,
           onChanged: onChanged,
+        ),
+      ),
+    );
+  }
+}
+
+/// A selectable card used in the Scale Protocol picker.
+class _ProtocolOption extends StatelessWidget {
+  final String label;
+  final String subtitle;
+  final IconData icon;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _ProtocolOption({
+    required this.label,
+    required this.subtitle,
+    required this.icon,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final color = selected ? Colors.blueAccent : Colors.white24;
+
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
+        decoration: BoxDecoration(
+          color: selected
+              ? Colors.blueAccent.withOpacity(0.10)
+              : Colors.white.withOpacity(0.03),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: selected
+                ? Colors.blueAccent.withOpacity(0.60)
+                : Colors.white.withOpacity(0.08),
+            width: selected ? 1.5 : 1,
+          ),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, color: color, size: 26),
+            const SizedBox(height: 8),
+            Text(
+              label,
+              textAlign: TextAlign.center,
+              style: GoogleFonts.inter(
+                color: selected ? Colors.white : Colors.white54,
+                fontSize: 13,
+                fontWeight: selected ? FontWeight.bold : FontWeight.normal,
+                height: 1.3,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              subtitle,
+              textAlign: TextAlign.center,
+              style: GoogleFonts.inter(
+                color: selected ? Colors.blueAccent : Colors.white24,
+                fontSize: 10,
+              ),
+            ),
+            if (selected) ...[
+              const SizedBox(height: 6),
+              Icon(Icons.check_circle, color: Colors.blueAccent, size: 14),
+            ],
+          ],
         ),
       ),
     );

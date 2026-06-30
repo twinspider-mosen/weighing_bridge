@@ -18,6 +18,7 @@ class WeighingScreenController {
   bool isListening = false;
   String status = 'Disconnected';
   ScaleConfig? activeConfig;
+  ScaleProtocol scaleProtocol = ScaleProtocol.binaryAutoDetect;
 
   List<CameraConfig> savedCameras = [];
   CameraConfig? frontCamera;
@@ -46,6 +47,7 @@ class WeighingScreenController {
     requireApprovalForRecords = await settingsService.getRequireApprovalForRecords();
     enableFrontCamera = await settingsService.getEnableFrontCamera();
     enableBackCamera = await settingsService.getEnableBackCamera();
+    scaleProtocol = await settingsService.getScaleProtocol();
     onUpdate();
   }
 
@@ -88,7 +90,9 @@ class WeighingScreenController {
     final trimmed = data.trim();
     if (trimmed.isEmpty) return;
     final match = RegExp(r'([0-9]+\.[0-9]+|[0-9]+)').firstMatch(trimmed);
-    final unitMatch = RegExp(r'(kg|lb|g)', caseSensitive: false).firstMatch(trimmed);
+    // Order matters: 'kg' must come before 'g', and 'g' is anchored with \b
+    // so it won't match the 'g' tail inside 'kg'.
+    final unitMatch = RegExp(r'\b(kg|lb|g)\b', caseSensitive: false).firstMatch(trimmed);
     if (match != null) {
       final raw = match.group(0)!;
       try {
@@ -99,7 +103,9 @@ class WeighingScreenController {
         currentWeight = raw;
       }
     }
-    if (unitMatch != null) unit = unitMatch.group(0)!.toLowerCase();
+    if (unitMatch != null) {
+      unit = unitMatch.group(0)!.toLowerCase();
+    }
     onUpdate();
   }
 
@@ -114,8 +120,17 @@ class WeighingScreenController {
     status = 'Scanning...';
     onUpdate();
     try {
-      final config = await scaleService.scanPort(selectedPort!).timeout(const Duration(seconds: 45));
-      if (config != null) {
+      final scanned = await scaleService.scanPort(selectedPort!).timeout(const Duration(seconds: 45));
+      if (scanned != null) {
+        // Stamp the user-selected protocol onto the scanned baud/parity config.
+        // This leaves all existing binary systems unaffected (default = binaryAutoDetect).
+        final config = ScaleConfig(
+          baudRate: scanned.baudRate,
+          parity: scanned.parity,
+          dataBits: scanned.dataBits,
+          stopBits: scanned.stopBits,
+          protocol: scaleProtocol,
+        );
         activeConfig = config;
         isListening = await scaleService.startListening(selectedPort!, config);
         status = isListening ? 'Connected' : 'Connection Failed';
@@ -138,7 +153,17 @@ class WeighingScreenController {
       onUpdate();
     } else {
       if (activeConfig != null && selectedPort != null) {
-        isListening = await scaleService.startListening(selectedPort!, activeConfig!);
+        // Re-apply the current protocol in case it was changed in Settings
+        // since the last scan without requiring a new full scan.
+        final config = ScaleConfig(
+          baudRate: activeConfig!.baudRate,
+          parity: activeConfig!.parity,
+          dataBits: activeConfig!.dataBits,
+          stopBits: activeConfig!.stopBits,
+          protocol: scaleProtocol,
+        );
+        activeConfig = config;
+        isListening = await scaleService.startListening(selectedPort!, config);
         status = isListening ? 'Connected' : 'Connection Failed';
         onUpdate();
       } else {
