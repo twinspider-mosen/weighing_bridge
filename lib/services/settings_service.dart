@@ -1,4 +1,5 @@
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:spider_weighbridge/services/scale_service.dart';
 
 /// Standalone, decoupled service to persist system settings using SharedPreferences.
 class SettingsService {
@@ -54,5 +55,27 @@ class SettingsService {
   Future<void> setEnableBackCamera(bool value) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_keyEnableBackCamera, value);
+  }
+
+  // ── Scale Protocol ──────────────────────────────────────────────────────────
+
+  static const String _keyScaleProtocol = 'settings_scale_protocol';
+
+  /// Retrieves the persisted [ScaleProtocol].
+  /// Defaults to [ScaleProtocol.binaryAutoDetect] so existing systems
+  /// continue to work without any change to their saved settings.
+  Future<ScaleProtocol> getScaleProtocol() async {
+    final prefs = await SharedPreferences.getInstance();
+    final stored = prefs.getString(_keyScaleProtocol);
+    if (stored == ScaleProtocol.csvPlainText.name) {
+      return ScaleProtocol.csvPlainText;
+    }
+    return ScaleProtocol.binaryAutoDetect;
+  }
+
+  /// Persists the [ScaleProtocol] choice.
+  Future<void> setScaleProtocol(ScaleProtocol protocol) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_keyScaleProtocol, protocol.name);
   }
 }

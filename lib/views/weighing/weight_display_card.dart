@@ -7,6 +7,7 @@ class WeightDisplayCard extends StatelessWidget {
   final String currentWeight;
   final String unit;
   final ScaleConfig? activeConfig;
+  
 
   const WeightDisplayCard({
     super.key,

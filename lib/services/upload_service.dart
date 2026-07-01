@@ -33,7 +33,7 @@ class UploadService {
     }
 
     // Upload images
-    var response = await _apiService.uploadScreenshot(
+    var serverResponse = await _apiService.uploadScreenshot(
       requestID: requestID,
       subdomain: subdomain,
       weight: currentWeight,
@@ -45,11 +45,11 @@ class UploadService {
       recordStage: recordStage,
       moduleType: moduleType,
     );
-    print("response = = = = => ${response}");
-    LoggerService().log('response = = = = => $response');
+    print("response = = = = => ${serverResponse}");
+    LoggerService().log('response = = = = => $serverResponse');
 
-    print("response Data = = = = => ${response.data}");
-    LoggerService().log('response Data = = = = => ${response.data}');
+    print("response Data = = = = => ${serverResponse.data}");
+    LoggerService().log('response Data = = = = => ${serverResponse.data}');
     await LoggerService().log("Upload completed successfully");
   }
 }
