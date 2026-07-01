@@ -154,8 +154,9 @@ class CameraCaptureService {
       }
     }
 
-    if ((frontPath == null && backPath == null) || !context.mounted) return;
+    // if ((frontPath == null && backPath == null) || !context.mounted) return;
 
+    if (!context.mounted) return;
     onLoadingChanged(true);
 
     try {
