@@ -32,6 +32,7 @@ class WeighingScreenController {
   bool requireApprovalForRecords = false;
   bool enableFrontCamera = true;
   bool enableBackCamera = true;
+  CameraAspectRatio cameraAspectRatio = CameraAspectRatio.ratio4x3;
 
   List<UserModel> availableUsers = [];
   UserModel? activeUser;
@@ -48,6 +49,7 @@ class WeighingScreenController {
         .getRequireApprovalForRecords();
     enableFrontCamera = await settingsService.getEnableFrontCamera();
     enableBackCamera = await settingsService.getEnableBackCamera();
+    cameraAspectRatio = await settingsService.getCameraAspectRatio();
     scaleProtocol = await settingsService.getScaleProtocol();
     onUpdate();
   }

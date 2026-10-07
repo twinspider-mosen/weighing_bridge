@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:spider_weighbridge/model/user_model.dart';
 import 'package:spider_weighbridge/services/api_service.dart';
 import 'package:spider_weighbridge/services/session_service.dart';
+import 'package:spider_weighbridge/utils/app_version.dart';
 import 'package:spider_weighbridge/views/weighing_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -371,6 +372,17 @@ class _LoginScreenState extends State<LoginScreen> {
                     letterSpacing: 1.2,
                   ),
                 ),
+        ),
+        const SizedBox(height: 16),
+        Center(
+          child: Text(
+            AppVersion.fullVersion,
+            style: GoogleFonts.inter(
+              color: Colors.white24,
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
         ),
       ],
     );

@@ -21,6 +21,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _requireApprovalForRecords = false;
   bool _enableFrontCamera = true;
   bool _enableBackCamera = true;
+  CameraAspectRatio _cameraAspectRatio = CameraAspectRatio.ratio4x3;
   ScaleProtocol _scaleProtocol = ScaleProtocol.binaryAutoDetect;
   bool _isLoading = true;
 
@@ -35,6 +36,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final approvalValue = await _settingsService.getRequireApprovalForRecords();
     final frontValue = await _settingsService.getEnableFrontCamera();
     final backValue = await _settingsService.getEnableBackCamera();
+    final ratioValue = await _settingsService.getCameraAspectRatio();
     final protocolValue = await _settingsService.getScaleProtocol();
     if (mounted) {
       setState(() {
@@ -42,6 +44,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         _requireApprovalForRecords = approvalValue;
         _enableFrontCamera = frontValue;
         _enableBackCamera = backValue;
+        _cameraAspectRatio = ratioValue;
         _scaleProtocol = protocolValue;
         _isLoading = false;
       });
@@ -73,6 +76,47 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ),
       );
     }
+  }
+
+  Future<void> _setCameraAspectRatio(CameraAspectRatio ratio) async {
+    setState(() => _cameraAspectRatio = ratio);
+    await _settingsService.setCameraAspectRatio(ratio);
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: Colors.teal.shade800,
+          content: Row(
+            children: [
+              const Icon(Icons.check_circle, color: Colors.white, size: 18),
+              const SizedBox(width: 8),
+              Text(
+                ratio == CameraAspectRatio.ratio1x1
+                    ? 'Camera display set to 1:1 Square layout'
+                    : 'Camera display set to 4:3 Standard (Horizontal) layout',
+                style: GoogleFonts.inter(fontWeight: FontWeight.w500),
+              ),
+            ],
+          ),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
+  Widget _buildAspectRatioOption({
+    required CameraAspectRatio ratio,
+    required String title,
+    required String subtitle,
+    required IconData icon,
+  }) {
+    final selected = _cameraAspectRatio == ratio;
+    return _ProtocolOption(
+      label: title,
+      subtitle: subtitle,
+      icon: icon,
+      selected: selected,
+      onTap: () => _setCameraAspectRatio(ratio),
+    );
   }
 
   Future<void> _toggleUploadOnCapture(bool value) async {
@@ -609,6 +653,85 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           "Hide the back vehicle camera feed and skip back camera image capture/upload.",
                       enabledIcon: Icons.videocam_outlined,
                       disabledIcon: Icons.videocam_off_outlined,
+                    ),
+
+                    const SizedBox(height: 12),
+                    // Camera Layout Ratio Picker
+                    reusableCard(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 16,
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(10),
+                                decoration: BoxDecoration(
+                                  color: Colors.tealAccent.withOpacity(0.08),
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: Colors.tealAccent.withOpacity(0.25),
+                                  ),
+                                ),
+                                child: const Icon(
+                                  Icons.aspect_ratio_rounded,
+                                  color: Colors.tealAccent,
+                                  size: 24,
+                                ),
+                              ),
+                              const SizedBox(width: 14),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      "Camera Display Aspect Ratio",
+                                      style: GoogleFonts.inter(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 15,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      "Choose how camera streams are proportioned on the dashboard",
+                                      style: GoogleFonts.inter(
+                                        color: Colors.white54,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _buildAspectRatioOption(
+                                  ratio: CameraAspectRatio.ratio4x3,
+                                  title: "4:3 Standard (Horizontal)",
+                                  subtitle: "Optimized landscape ratio for wider field-of-view",
+                                  icon: Icons.crop_landscape_rounded,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: _buildAspectRatioOption(
+                                  ratio: CameraAspectRatio.ratio1x1,
+                                  title: "1:1 Square",
+                                  subtitle: "Compact equal width & height box layout",
+                                  icon: Icons.crop_square_rounded,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
 
                     const SizedBox(height: 24),

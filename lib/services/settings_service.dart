@@ -78,4 +78,33 @@ class SettingsService {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_keyScaleProtocol, protocol.name);
   }
+
+  // ── Camera Aspect Ratio Layout ─────────────────────────────────────────────
+
+  static const String _keyCameraAspectRatio = 'settings_camera_aspect_ratio';
+
+  /// Retrieves the persisted [CameraAspectRatio].
+  /// Defaults to [CameraAspectRatio.ratio4x3] (horizontal 4:3 standard).
+  Future<CameraAspectRatio> getCameraAspectRatio() async {
+    final prefs = await SharedPreferences.getInstance();
+    final stored = prefs.getString(_keyCameraAspectRatio);
+    if (stored == CameraAspectRatio.ratio1x1.name) {
+      return CameraAspectRatio.ratio1x1;
+    }
+    return CameraAspectRatio.ratio4x3;
+  }
+
+  /// Persists the [CameraAspectRatio] choice.
+  Future<void> setCameraAspectRatio(CameraAspectRatio ratio) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_keyCameraAspectRatio, ratio.name);
+  }
+}
+
+/// Supported fixed aspect ratios for camera feeds on the dashboard.
+enum CameraAspectRatio {
+  /// 4:3 Horizontal (Standard landscape camera view)
+  ratio4x3,
+  /// 1:1 Square (Compact equal dimension box)
+  ratio1x1,
 }

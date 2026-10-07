@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:spider_weighbridge/model/user_model.dart';
 import 'package:spider_weighbridge/services/session_service.dart';
+import 'package:spider_weighbridge/utils/app_version.dart';
 import 'package:spider_weighbridge/views/auth/login_screen.dart';
 import 'package:spider_weighbridge/views/log_viewer_screen.dart';
 import 'package:spider_weighbridge/views/settings_screen.dart';
@@ -331,9 +332,22 @@ class _WeighingDrawerState extends State<WeighingDrawer> {
           const Spacer(),
           Padding(
             padding: const EdgeInsets.all(16.0),
-            child: Text(
-              'Antigravity Industrial POS System',
-              style: GoogleFonts.inter(color: Colors.white24, fontSize: 11),
+            child: Column(
+              children: [
+                Text(
+                  'Spider Weighbridge',
+                  style: GoogleFonts.inter(color: Colors.white24, fontSize: 11),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  AppVersion.fullVersion,
+                  style: GoogleFonts.inter(
+                    color: Colors.greenAccent.withOpacity(0.5),
+                    fontSize: 10,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
             ),
           ),
         ],

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:spider_weighbridge/model/user_model.dart';
+import 'package:spider_weighbridge/utils/app_version.dart';
 
 class WeighingAppBar extends StatelessWidget implements PreferredSizeWidget {
   final UserModel? activeUser;
@@ -36,6 +37,27 @@ class WeighingAppBar extends StatelessWidget implements PreferredSizeWidget {
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
                   letterSpacing: 2,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Colors.greenAccent.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(
+                    color: Colors.greenAccent.withOpacity(0.3),
+                    width: 0.8,
+                  ),
+                ),
+                child: Text(
+                  AppVersion.displayVersion,
+                  style: GoogleFonts.inter(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.greenAccent,
+                    letterSpacing: 0.5,
+                  ),
                 ),
               ),
             ],

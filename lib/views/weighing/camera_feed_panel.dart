@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:spider_weighbridge/components/live_camera_player.dart';
 import 'package:spider_weighbridge/services/camera_service.dart';
 import 'package:spider_weighbridge/services/ocr_service.dart';
+import 'package:spider_weighbridge/services/settings_service.dart';
 import 'camera_zoom_controls.dart';
 
 class CameraFeedPanel extends StatelessWidget {
@@ -28,13 +29,13 @@ class CameraFeedPanel extends StatelessWidget {
   final VoidCallback onBackZoomOut;
   final VoidCallback onBackResetZoom;
 
-  // Shared
   final bool isCapturingSnap;
   final bool shrinkWrap;
   final VoidCallback onCaptureSnap;
   final VoidCallback onManageCameras;
   final bool enableFront;
   final bool enableBack;
+  final CameraAspectRatio aspectRatio;
 
   const CameraFeedPanel({
     super.key,
@@ -61,6 +62,7 @@ class CameraFeedPanel extends StatelessWidget {
     required this.onManageCameras,
     required this.enableFront,
     required this.enableBack,
+    this.aspectRatio = CameraAspectRatio.ratio4x3,
   });
 
   @override
@@ -320,9 +322,9 @@ class CameraFeedPanel extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 10),
-        // Player
-        SizedBox(
-          height: 320,
+        // Player with fixed Aspect Ratio (4:3 horizontal or 1:1 square)
+        AspectRatio(
+          aspectRatio: aspectRatio == CameraAspectRatio.ratio1x1 ? 1.0 : (4.0 / 3.0),
           child: camera == null
               ? Container(
                   decoration: BoxDecoration(
@@ -334,7 +336,7 @@ class CameraFeedPanel extends StatelessWidget {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(
+                        const Icon(
                           Icons.videocam_off,
                           color: Colors.white24,
                           size: 32,

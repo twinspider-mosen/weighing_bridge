@@ -177,6 +177,7 @@ class WeighingDesktopView extends StatelessWidget {
       onManageCameras: onManageCameras,
       enableFront: controller.enableFrontCamera,
       enableBack: controller.enableBackCamera,
+      aspectRatio: controller.cameraAspectRatio,
     );
   }
 }
