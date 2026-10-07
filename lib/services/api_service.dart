@@ -54,7 +54,7 @@ class ApiService {
     String? frontImagePath,
     String? backImagePath,
     required String recordType,
-    required String scaleStockId,
+    String? scaleStockId,
     required String recordStage,
     required String moduleType,
   }) async {
@@ -66,10 +66,11 @@ class ApiService {
       'module_type': moduleType,
       'scale_name': scaleName,
       'record_type': recordType,
-      'scale_stock_id': scaleStockId,
+      if (scaleStockId != null) ...{'scale_stock_id': scaleStockId},
       'weight': double.tryParse(weight) ?? 0.0,
     };
 
+    print("Form Data ================  $formMap ============================");
     // Attach front image if provided and exists
     if (frontImagePath != null && frontImagePath.isNotEmpty) {
       final frontFile = File(frontImagePath);
@@ -155,6 +156,8 @@ class Urls {
       "https://flour.twincloud.app/api/v1/app_dashboard/verify_subdomain?subdomain=";
 
   static const String base = "twincloud.app/";
+  // static const String base = "ngrok-free.app/";
+
   // // static const String base = "20e2-182-189-116-35.ngrok-free.app/";
   // static const String base = "20e2-182-189-116-35.ngrok-free.app/";
   // static const String subDomain =

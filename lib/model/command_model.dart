@@ -10,12 +10,12 @@ class CommandModel {
   final File backImage;
   final double weight;
   final String status;
-  final String scaleStockId;
+  String? scaleStockId;
   final String recordType;
   final String recordStage;
   final String moduleType;
 
-  const CommandModel({
+  CommandModel({
     required this.subdomain,
     required this.requestID,
     required this.scaleName,
@@ -23,7 +23,7 @@ class CommandModel {
     required this.backImage,
     required this.weight,
     required this.status,
-    required this.scaleStockId,
+    this.scaleStockId,
     required this.recordType,
     required this.recordStage,
     required this.moduleType,
@@ -67,7 +67,9 @@ class CommandModel {
       weight: (data['weight'] ?? 0).toDouble(),
       status: data['status'] ?? '',
       recordType: data['record_type'] ?? '',
-      scaleStockId: data['scale_stock_id'] ?? '',
+      scaleStockId: data['scale_stock_id'] != null
+          ? "${data['scale_stock_id']}"
+          : null,
       recordStage: data['record_stage'] ?? '',
       moduleType: data['module_type'] ?? '',
     );
@@ -132,7 +134,7 @@ CommandModel(
 
       'weight': weight,
       'status': status.trim(),
-      'scale_stock_id': scaleStockId.trim(),
+      'scale_stock_id': scaleStockId,
       'record_type': recordType.trim(),
       'record_stage': recordStage.trim(),
       'module_type': moduleType.trim(),

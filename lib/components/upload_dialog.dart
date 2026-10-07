@@ -17,7 +17,7 @@ Future<void> showUploadDialog({
   required String scaleName,
   required String subdomain,
   required String recordType,
-  required String scaleStockId,
+  String? scaleStockId,
   required String recordStage,
   required String moduleType,
 }) async {
@@ -47,20 +47,20 @@ class UploadDialog extends StatefulWidget {
   final String currentWeight;
   final String requestID;
   final String scaleName;
-  final String scaleStockId;
+  String? scaleStockId;
   final String recordType;
   final String subdomain;
   final String recordStage;
   final String moduleType;
 
-  const UploadDialog({
+  UploadDialog({
     super.key,
     this.frontImagePath,
     this.backImagePath,
     required this.currentWeight,
     required this.requestID,
     required this.scaleName,
-    required this.scaleStockId,
+    this.scaleStockId,
     required this.recordType,
     required this.subdomain,
     required this.recordStage,
@@ -335,7 +335,8 @@ class _UploadDialogState extends State<UploadDialog> {
                           label: 'FRONT',
                         ),
                       ),
-                    if (widget.frontImagePath != null && widget.backImagePath != null)
+                    if (widget.frontImagePath != null &&
+                        widget.backImagePath != null)
                       const SizedBox(width: 8),
                     if (widget.backImagePath != null)
                       Expanded(
@@ -344,19 +345,25 @@ class _UploadDialogState extends State<UploadDialog> {
                           label: 'BACK',
                         ),
                       ),
-                    if (widget.frontImagePath == null && widget.backImagePath == null)
+                    if (widget.frontImagePath == null &&
+                        widget.backImagePath == null)
                       Expanded(
                         child: Container(
                           height: 130,
                           decoration: BoxDecoration(
                             color: Colors.black.withOpacity(0.3),
                             borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: Colors.white.withOpacity(0.05)),
+                            border: Border.all(
+                              color: Colors.white.withOpacity(0.05),
+                            ),
                           ),
                           child: Center(
                             child: Text(
                               "No images captured",
-                              style: GoogleFonts.inter(color: Colors.white38, fontSize: 12),
+                              style: GoogleFonts.inter(
+                                color: Colors.white38,
+                                fontSize: 12,
+                              ),
                             ),
                           ),
                         ),

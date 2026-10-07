@@ -13,7 +13,7 @@ class UploadService {
     required String scaleName,
     required String subdomain,
     required String recordType,
-    required String scaleStockId,
+    String? scaleStockId,
     required String recordStage,
     required String moduleType,
     bool runOCR = true,

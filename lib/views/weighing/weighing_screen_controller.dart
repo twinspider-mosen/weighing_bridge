@@ -10,8 +10,8 @@ class WeighingScreenController {
   final ScaleService scaleService = ScaleService();
   final CameraStorageService cameraStorage = CameraStorageService();
   final SettingsService settingsService = SettingsService();
-
-  String currentWeight = '0.00';
+  // need to update before build
+  String currentWeight = '1234.00';
   String unit = 'kg';
   String? selectedPort;
   bool isScanning = false;
@@ -23,7 +23,7 @@ class WeighingScreenController {
   List<CameraConfig> savedCameras = [];
   CameraConfig? frontCamera;
   CameraConfig? backCamera;
-  
+
   bool isCapturingSnap = false;
   double frontCameraZoom = 1.0;
   double backCameraZoom = 1.0;
@@ -32,7 +32,7 @@ class WeighingScreenController {
   bool requireApprovalForRecords = false;
   bool enableFrontCamera = true;
   bool enableBackCamera = true;
-  
+
   List<UserModel> availableUsers = [];
   UserModel? activeUser;
 
@@ -44,7 +44,8 @@ class WeighingScreenController {
 
   Future<void> loadSettings(VoidCallback onUpdate) async {
     uploadOnCapture = await settingsService.getUploadOnCapture();
-    requireApprovalForRecords = await settingsService.getRequireApprovalForRecords();
+    requireApprovalForRecords = await settingsService
+        .getRequireApprovalForRecords();
     enableFrontCamera = await settingsService.getEnableFrontCamera();
     enableBackCamera = await settingsService.getEnableBackCamera();
     scaleProtocol = await settingsService.getScaleProtocol();
@@ -92,7 +93,10 @@ class WeighingScreenController {
     final match = RegExp(r'([0-9]+\.[0-9]+|[0-9]+)').firstMatch(trimmed);
     // Order matters: 'kg' must come before 'g', and 'g' is anchored with \b
     // so it won't match the 'g' tail inside 'kg'.
-    final unitMatch = RegExp(r'\b(kg|lb|g)\b', caseSensitive: false).firstMatch(trimmed);
+    final unitMatch = RegExp(
+      r'\b(kg|lb|g)\b',
+      caseSensitive: false,
+    ).firstMatch(trimmed);
     if (match != null) {
       final raw = match.group(0)!;
       try {
@@ -120,7 +124,9 @@ class WeighingScreenController {
     status = 'Scanning...';
     onUpdate();
     try {
-      final scanned = await scaleService.scanPort(selectedPort!).timeout(const Duration(seconds: 45));
+      final scanned = await scaleService
+          .scanPort(selectedPort!)
+          .timeout(const Duration(seconds: 45));
       if (scanned != null) {
         // Stamp the user-selected protocol onto the scanned baud/parity config.
         // This leaves all existing binary systems unaffected (default = binaryAutoDetect).
@@ -145,7 +151,10 @@ class WeighingScreenController {
     }
   }
 
-  Future<void> toggleListener(BuildContext context, VoidCallback onUpdate) async {
+  Future<void> toggleListener(
+    BuildContext context,
+    VoidCallback onUpdate,
+  ) async {
     if (isListening) {
       await scaleService.stopListening();
       isListening = false;

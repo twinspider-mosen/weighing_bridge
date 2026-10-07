@@ -16,10 +16,7 @@ import 'logger_service.dart';
 ///   such as the PMS-style scale used at Sihala Flour Mill. The parser
 ///   extracts the first plausible numeric weight field from each
 ///   newline-terminated CSV record.
-enum ScaleProtocol {
-  binaryAutoDetect,
-  csvPlainText,
-}
+enum ScaleProtocol { binaryAutoDetect, csvPlainText }
 
 class ScaleConfig {
   final int baudRate;
@@ -56,7 +53,7 @@ class ScaleService {
   Stream<String> get weightStream => _weightController.stream;
 
   static const List<int> bauds = [9600, 4800, 2400, 1200, 19200];
-  
+
   // Parity constants from libserialport
   // 0: None, 1: Odd, 2: Even, 3: Mark, 4: Space
   static const List<int> parities = [
@@ -68,11 +65,11 @@ class ScaleService {
   /// Cleanup conflicting processes (Windows specific)
   Future<void> cleanupProcesses() async {
     if (!Platform.isWindows) return;
-    
+
     try {
       final results = await Process.run('tasklist', []);
       final output = results.stdout.toString().toLowerCase();
-      
+
       final targets = ['winscale', 'pos'];
       for (final target in targets) {
         if (output.contains(target)) {
@@ -91,7 +88,11 @@ class ScaleService {
     try {
       await cleanupProcesses().timeout(const Duration(seconds: 5));
     } catch (e, stack) {
-      await LoggerService().log('Process cleanup timed out during scan', e, stack);
+      await LoggerService().log(
+        'Process cleanup timed out during scan',
+        e,
+        stack,
+      );
     }
 
     final available = getAvailablePorts();
@@ -100,14 +101,18 @@ class ScaleService {
     for (final baud in bauds) {
       for (final parity in parities) {
         final dataBits = parity == SerialPortParity.none ? 8 : 7;
-        
-        await LoggerService().log('Testing $portName: $baud Baud, Parity $parity, $dataBits DataBits');
-        
+
+        await LoggerService().log(
+          'Testing $portName: $baud Baud, Parity $parity, $dataBits DataBits',
+        );
+
         SerialPort? port;
         try {
           port = SerialPort(portName);
           if (!port.openReadWrite()) {
-            await LoggerService().log('Failed to open port $portName at $baud/$parity during scan. Port might be locked by another process.');
+            await LoggerService().log(
+              'Failed to open port $portName at $baud/$parity during scan. Port might be locked by another process.',
+            );
             continue;
           }
 
@@ -126,10 +131,14 @@ class ScaleService {
             if (port.bytesAvailable > 0) {
               final rawData = port.read(port.bytesAvailable);
               final text = _cleanData(rawData);
-              await LoggerService().log('Data read attempt ${attempts + 1} on $baud/$parity: RawBytesLength=${rawData.length}, CleanedText="${text.trim()}"');
-              
+              await LoggerService().log(
+                'Data read attempt ${attempts + 1} on $baud/$parity: RawBytesLength=${rawData.length}, CleanedText="${text.trim()}"',
+              );
+
               if (RegExp(r'[0-9]').hasMatch(text)) {
-                await LoggerService().log('!!! SCAN SUCCESS !!! Found readable digit data on $portName at $baud Baud, Parity $parity.');
+                await LoggerService().log(
+                  '!!! SCAN SUCCESS !!! Found readable digit data on $portName at $baud Baud, Parity $parity.',
+                );
                 foundData = true;
                 return ScaleConfig(
                   baudRate: baud,
@@ -138,12 +147,18 @@ class ScaleService {
                 );
               }
             } else {
-              await LoggerService().log('No bytes available on $portName at $baud/$parity (attempt ${attempts + 1}/3)');
+              await LoggerService().log(
+                'No bytes available on $portName at $baud/$parity (attempt ${attempts + 1}/3)',
+              );
             }
             attempts++;
           }
         } catch (e, stack) {
-          await LoggerService().log('Error testing $baud/$parity on $portName', e, stack);
+          await LoggerService().log(
+            'Error testing $baud/$parity on $portName',
+            e,
+            stack,
+          );
         } finally {
           try {
             port?.close();
@@ -153,19 +168,25 @@ class ScaleService {
         }
       }
     }
-    await LoggerService().log('Scan complete for $portName. No working configuration was found.');
+    await LoggerService().log(
+      'Scan complete for $portName. No working configuration was found.',
+    );
     return null;
   }
 
   /// Start listening on a port with specific config
   Future<bool> startListening(String portName, ScaleConfig config) async {
-    await LoggerService().log('Attempting to start listener on $portName with config: $config');
+    await LoggerService().log(
+      'Attempting to start listener on $portName with config: $config',
+    );
     await stopListening();
 
     try {
       _currentPort = SerialPort(portName);
       if (!_currentPort!.openReadWrite()) {
-        await LoggerService().log('Failed to open port $portName for listening. Access Denied / Exclusive Lock active.');
+        await LoggerService().log(
+          'Failed to open port $portName for listening. Access Denied / Exclusive Lock active.',
+        );
         return false;
       }
 
@@ -180,234 +201,284 @@ class ScaleService {
       _rawBuffer.clear();
 
       _reader = SerialPortReader(_currentPort!);
-      await LoggerService().log('SerialPortReader created successfully on $portName.');
+      await LoggerService().log(
+        'SerialPortReader created successfully on $portName.',
+      );
 
       int chunkCount = 0;
-      _reader!.stream.listen((Uint8List data) {
-        chunkCount++;
-        if (chunkCount <= 100 || chunkCount % 100 == 0) {
-          final asciiCleaned = data.map((b) => b & 0x7F).toList();
-          final asciiStr = ascii.decode(asciiCleaned, allowInvalid: true).replaceAll(RegExp(r'[\x00-\x1F\x7F]'), '.');
-          LoggerService().log('Stream raw data chunk #$chunkCount [${config.protocol.name}]: len=${data.length}, bytes=$data, text="$asciiStr"');
-        }
+      _reader!.stream.listen(
+        (Uint8List data) {
+          chunkCount++;
+          if (chunkCount <= 100 || chunkCount % 100 == 0) {
+            final asciiCleaned = data.map((b) => b & 0x7F).toList();
+            final asciiStr = ascii
+                .decode(asciiCleaned, allowInvalid: true)
+                .replaceAll(RegExp(r'[\x00-\x1F\x7F]'), '.');
+            LoggerService().log(
+              'Stream raw data chunk #$chunkCount [${config.protocol.name}]: len=${data.length}, bytes=$data, text="$asciiStr"',
+            );
+          }
 
-        // Safety Guard: prevent raw buffer from growing boundlessly.
-        // CSV packets can be longer so we allow a larger ceiling for that mode.
-        final int bufferLimit = config.protocol == ScaleProtocol.csvPlainText ? 2048 : 512;
-        if (_rawBuffer.length > bufferLimit) {
-          _rawBuffer.clear();
-        }
+          // Safety Guard: prevent raw buffer from growing boundlessly.
+          // CSV packets can be longer so we allow a larger ceiling for that mode.
+          final int bufferLimit = config.protocol == ScaleProtocol.csvPlainText
+              ? 2048
+              : 512;
+          if (_rawBuffer.length > bufferLimit) {
+            _rawBuffer.clear();
+          }
 
-        // Step 1: Append newly received raw bytes to our raw buffer
-        _rawBuffer.addAll(data);
+          // Step 1: Append newly received raw bytes to our raw buffer
+          _rawBuffer.addAll(data);
 
-        // Step 2: Continuously extract and parse complete packets from the raw buffer
-        bool foundPacket = true;
-        while (foundPacket) {
-          foundPacket = false;
+          // Step 2: Continuously extract and parse complete packets from the raw buffer
+          bool foundPacket = true;
+          while (foundPacket) {
+            foundPacket = false;
 
-          // ────────────────────────────────────────────────────────────────────
-          // PATH A  –  Binary Auto-Detect  (Yaohua / Toledo)
-          // This is the ORIGINAL, UNCHANGED path for all previously working
-          // systems. Do not modify this block.
-          // ────────────────────────────────────────────────────────────────────
-          if (config.protocol == ScaleProtocol.binaryAutoDetect) {
-
-            // A1: Try parsing as Toledo or Yaohua Continuous Packet with dynamic framing (STX ... ETX/CR)
-            // Search for STX (0x02) in the raw buffer (masking parity bit to handle Even/Odd parity frames)
-            int stxIndex = -1;
-            for (int i = 0; i < _rawBuffer.length; i++) {
-              if ((_rawBuffer[i] & 0x7F) == 0x02) {
-                stxIndex = i;
-                break;
-              }
-            }
-
-            if (stxIndex != -1) {
-              // Find the packet terminator following this STX.
-              // In Yaohua continuous format, the packet is exactly 12 bytes and ends with ETX (0x03).
-              // In Toledo continuous format, the packet is typically 17/18 bytes and ends with CR (0x0D).
-              // We search for ETX (0x03) or CR (0x0D) starting from stxIndex + 8 to stxIndex + 22.
-              int termIndex = -1;
-              int termByte = -1;
-              for (int i = stxIndex + 8; i < _rawBuffer.length && i <= stxIndex + 22; i++) {
-                final int b = _rawBuffer[i] & 0x7F;
-                if (b == 0x03 || b == 0x0D) {
-                  termIndex = i;
-                  termByte = b;
+            // ────────────────────────────────────────────────────────────────────
+            // PATH A  –  Binary Auto-Detect  (Yaohua / Toledo)
+            // This is the ORIGINAL, UNCHANGED path for all previously working
+            // systems. Do not modify this block.
+            // ────────────────────────────────────────────────────────────────────
+            if (config.protocol == ScaleProtocol.binaryAutoDetect) {
+              // A1: Try parsing as Toledo or Yaohua Continuous Packet with dynamic framing (STX ... ETX/CR)
+              // Search for STX (0x02) in the raw buffer (masking parity bit to handle Even/Odd parity frames)
+              int stxIndex = -1;
+              for (int i = 0; i < _rawBuffer.length; i++) {
+                if ((_rawBuffer[i] & 0x7F) == 0x02) {
+                  stxIndex = i;
                   break;
                 }
               }
 
-              if (termIndex != -1) {
-                foundPacket = true;
-                final int packetLength = termIndex - stxIndex + 1;
-                final packet = _rawBuffer.sublist(stxIndex, stxIndex + packetLength);
-
-                // Remove the packet (and any leading garbage prior to STX) from the raw buffer
-                _rawBuffer.removeRange(0, stxIndex + packetLength);
-
-                try {
-                  // Scenario 1: Yaohua 12-byte Continuous Packet ending with ETX (0x03)
-                  if (termByte == 0x03 && packetLength == 12) {
-                    // Gross Weight digits are at packet indices 2 to 7 (6 characters)
-                    final weightBytes = packet.sublist(2, 8);
-                    final cleanWeightBytes = weightBytes.map((b) => b & 0x7F).toList();
-                    final weightStr = ascii.decode(cleanWeightBytes).trim();
-
-                    // Sign: packet index 1 (+ or -)
-                    final int signByte = packet[1] & 0x7F;
-                    final bool isNegative = signByte == 0x2D; // '-' is 0x2D
-
-                    // Decimal point position: packet index 8 (ASCII digit '0'-'4')
-                    final int decChar = packet[8] & 0x7F;
-                    final int decimalPower = decChar >= 0x30 && decChar <= 0x39 ? decChar - 0x30 : 0;
-
-                    double? weightValue = double.tryParse(weightStr);
-                    if (weightValue != null) {
-                      if (decimalPower > 0 && decimalPower <= 6) {
-                        weightValue = weightValue / math.pow(10, decimalPower);
-                      }
-                      if (isNegative) {
-                        weightValue = -weightValue;
-                      }
-
-                      final String formattedWeight = weightValue.toStringAsFixed(decimalPower);
-                      _weightController.add(formattedWeight);
-                    }
+              if (stxIndex != -1) {
+                // Find the packet terminator following this STX.
+                // In Yaohua continuous format, the packet is exactly 12 bytes and ends with ETX (0x03).
+                // In Toledo continuous format, the packet is typically 17/18 bytes and ends with CR (0x0D).
+                // We search for ETX (0x03) or CR (0x0D) starting from stxIndex + 8 to stxIndex + 22.
+                int termIndex = -1;
+                int termByte = -1;
+                for (
+                  int i = stxIndex + 8;
+                  i < _rawBuffer.length && i <= stxIndex + 22;
+                  i++
+                ) {
+                  final int b = _rawBuffer[i] & 0x7F;
+                  if (b == 0x03 || b == 0x0D) {
+                    termIndex = i;
+                    termByte = b;
+                    break;
                   }
-                  // Scenario 2: Toledo Continuous Packet ending with CR (0x0D) (length usually 17/18)
-                  else if (termByte == 0x0D && packetLength >= 10) {
-                    final weightBytes = packet.sublist(4, math.min(10, packetLength));
-                    final cleanWeightBytes = weightBytes.map((b) => b & 0x7F).toList();
-                    final weightStr = ascii.decode(cleanWeightBytes).trim();
-
-                    // Sign: Bit 1 of Status Word B (index 2 of packet) - Mask parity bit
-                    // 1 = negative, 0 = positive
-                    final int swb = packet[2] & 0x7F;
-                    final bool isNegative = (swb & 0x02) != 0;
-
-                    // Decimal position: lower 3 bits of Status Word A (index 1 of packet) - Mask parity bit
-                    final int swa = packet[1] & 0x7F;
-                    final int decimalPower = swa & 0x07;
-
-                    double? weightValue = double.tryParse(weightStr);
-                    if (weightValue != null) {
-                      if (decimalPower > 0 && decimalPower <= 6) {
-                        weightValue = weightValue / math.pow(10, decimalPower);
-                      }
-                      if (isNegative) {
-                        weightValue = -weightValue;
-                      }
-
-                      final String formattedWeight = weightValue.toStringAsFixed(
-                        decimalPower > 0 && decimalPower <= 6 ? decimalPower : 0
-                      );
-                      _weightController.add(formattedWeight);
-                    }
-                  }
-                } catch (e, stack) {
-                  LoggerService().log('Dynamic continuous decoding failed', e, stack);
                 }
 
-                continue; // Move to the next packet in the loop
-              } else {
-                // If we have at least 22 bytes after STX and still no terminator, it is invalid framing!
-                // Discard the invalid STX start byte so we do not lock up the buffer!
-                if (_rawBuffer.length >= stxIndex + 22) {
-                  _rawBuffer.removeRange(0, stxIndex + 1);
+                if (termIndex != -1) {
                   foundPacket = true;
-                  continue;
+                  final int packetLength = termIndex - stxIndex + 1;
+                  final packet = _rawBuffer.sublist(
+                    stxIndex,
+                    stxIndex + packetLength,
+                  );
+
+                  // Remove the packet (and any leading garbage prior to STX) from the raw buffer
+                  _rawBuffer.removeRange(0, stxIndex + packetLength);
+
+                  try {
+                    // Scenario 1: Yaohua 12-byte Continuous Packet ending with ETX (0x03)
+                    if (termByte == 0x03 && packetLength == 12) {
+                      // Gross Weight digits are at packet indices 2 to 7 (6 characters)
+                      final weightBytes = packet.sublist(2, 8);
+                      final cleanWeightBytes = weightBytes
+                          .map((b) => b & 0x7F)
+                          .toList();
+                      final weightStr = ascii.decode(cleanWeightBytes).trim();
+
+                      // Sign: packet index 1 (+ or -)
+                      final int signByte = packet[1] & 0x7F;
+                      final bool isNegative = signByte == 0x2D; // '-' is 0x2D
+
+                      // Decimal point position: packet index 8 (ASCII digit '0'-'4')
+                      final int decChar = packet[8] & 0x7F;
+                      final int decimalPower =
+                          decChar >= 0x30 && decChar <= 0x39
+                          ? decChar - 0x30
+                          : 0;
+
+                      double? weightValue = double.tryParse(weightStr);
+                      if (weightValue != null) {
+                        if (decimalPower > 0 && decimalPower <= 6) {
+                          weightValue =
+                              weightValue / math.pow(10, decimalPower);
+                        }
+                        if (isNegative) {
+                          weightValue = -weightValue;
+                        }
+
+                        final String formattedWeight = weightValue
+                            .toStringAsFixed(decimalPower);
+                        _weightController.add(formattedWeight);
+                      }
+                    }
+                    // Scenario 2: Toledo Continuous Packet ending with CR (0x0D) (length usually 17/18)
+                    else if (termByte == 0x0D && packetLength >= 10) {
+                      final weightBytes = packet.sublist(
+                        4,
+                        math.min(10, packetLength),
+                      );
+                      final cleanWeightBytes = weightBytes
+                          .map((b) => b & 0x7F)
+                          .toList();
+                      final weightStr = ascii.decode(cleanWeightBytes).trim();
+
+                      // Sign: Bit 1 of Status Word B (index 2 of packet) - Mask parity bit
+                      // 1 = negative, 0 = positive
+                      final int swb = packet[2] & 0x7F;
+                      final bool isNegative = (swb & 0x02) != 0;
+
+                      // Decimal position: lower 3 bits of Status Word A (index 1 of packet) - Mask parity bit
+                      final int swa = packet[1] & 0x7F;
+                      final int decimalPower = swa & 0x07;
+
+                      double? weightValue = double.tryParse(weightStr);
+                      if (weightValue != null) {
+                        if (decimalPower > 0 && decimalPower <= 6) {
+                          weightValue =
+                              weightValue / math.pow(10, decimalPower);
+                        }
+                        if (isNegative) {
+                          weightValue = -weightValue;
+                        }
+
+                        final String formattedWeight = weightValue
+                            .toStringAsFixed(
+                              decimalPower > 0 && decimalPower <= 6
+                                  ? decimalPower
+                                  : 0,
+                            );
+                        _weightController.add(formattedWeight);
+                      }
+                    }
+                  } catch (e, stack) {
+                    LoggerService().log(
+                      'Dynamic continuous decoding failed',
+                      e,
+                      stack,
+                    );
+                  }
+
+                  continue; // Move to the next packet in the loop
+                } else {
+                  // If we have at least 22 bytes after STX and still no terminator, it is invalid framing!
+                  // Discard the invalid STX start byte so we do not lock up the buffer!
+                  if (_rawBuffer.length >= stxIndex + 22) {
+                    _rawBuffer.removeRange(0, stxIndex + 1);
+                    foundPacket = true;
+                    continue;
+                  }
                 }
               }
-            }
 
-            // A2: Fallback – Standard ASCII newline-delimited parser
-            // (for simple non-Toledo scales sending weight\r\n)
-            int newlineIndex = -1;
-            for (int i = 0; i < _rawBuffer.length; i++) {
-              final byte = _rawBuffer[i] & 0x7F;
-              if (byte == 0x0A || byte == 0x0D) {
-                newlineIndex = i;
-                break;
-              }
-            }
-
-            if (newlineIndex != -1) {
-              foundPacket = true;
-
-              // Extract the raw bytes up to the newline
-              final rawLineBytes = _rawBuffer.sublist(0, newlineIndex);
-
-              // Remove from the raw buffer
-              _rawBuffer.removeRange(0, newlineIndex + 1);
-
-              // Decode and clean using standard ASCII cleaner
-              final String lineText = _cleanData(Uint8List.fromList(rawLineBytes));
-              if (lineText.trim().isNotEmpty) {
-                _weightController.add(lineText);
-              }
-            }
-
-          // ────────────────────────────────────────────────────────────────────
-          // PATH B  –  CSV / Plain-Text Protocol
-          // For scales that send comma-separated ASCII lines terminated by
-          // CR and/or LF, such as the PMS/Sihala Flour Mill system.
-          // Each line is decoded and fed into _parseCSVLine(); the first
-          // plausible numeric weight value (>= 1.0) is emitted.
-          // ────────────────────────────────────────────────────────────────────
-          } else if (config.protocol == ScaleProtocol.csvPlainText) {
-
-            // Find the next line terminator (CR or LF)
-            int newlineIndex = -1;
-            for (int i = 0; i < _rawBuffer.length; i++) {
-              final byte = _rawBuffer[i] & 0x7F;
-              if (byte == 0x0A || byte == 0x0D) {
-                newlineIndex = i;
-                break;
-              }
-            }
-
-            if (newlineIndex != -1) {
-              foundPacket = true;
-
-              // Extract raw bytes for this line (strip 8th parity bit)
-              final rawLineBytes = _rawBuffer.sublist(0, newlineIndex);
-              _rawBuffer.removeRange(0, newlineIndex + 1);
-
-              // Consume a following \n after \r (CRLF pair) so it isn't
-              // treated as an extra empty line next iteration.
-              if (_rawBuffer.isNotEmpty && (_rawBuffer[0] & 0x7F) == 0x0A) {
-                _rawBuffer.removeAt(0);
+              // A2: Fallback – Standard ASCII newline-delimited parser
+              // (for simple non-Toledo scales sending weight\r\n)
+              int newlineIndex = -1;
+              for (int i = 0; i < _rawBuffer.length; i++) {
+                final byte = _rawBuffer[i] & 0x7F;
+                if (byte == 0x0A || byte == 0x0D) {
+                  newlineIndex = i;
+                  break;
+                }
               }
 
-              final String lineText = ascii.decode(
-                rawLineBytes.map((b) => b & 0x7F).toList(),
-                allowInvalid: true,
-              );
+              if (newlineIndex != -1) {
+                foundPacket = true;
 
-              final String? parsed = _parseCSVLine(lineText);
-              if (parsed != null) {
-                LoggerService().log('CSV weight parsed: "$parsed" from line: "${lineText.trim()}"');
-                _weightController.add(parsed);
+                // Extract the raw bytes up to the newline
+                final rawLineBytes = _rawBuffer.sublist(0, newlineIndex);
+
+                // Remove from the raw buffer
+                _rawBuffer.removeRange(0, newlineIndex + 1);
+
+                // Decode and clean using standard ASCII cleaner
+                final String lineText = _cleanData(
+                  Uint8List.fromList(rawLineBytes),
+                );
+                if (lineText.trim().isNotEmpty) {
+                  _weightController.add(lineText);
+                }
+              }
+
+              // ────────────────────────────────────────────────────────────────────
+              // PATH B  –  CSV / Plain-Text Protocol
+              // For scales that send comma-separated ASCII lines terminated by
+              // CR and/or LF, such as the PMS/Sihala Flour Mill system.
+              // Each line is decoded and fed into _parseCSVLine(); the first
+              // plausible numeric weight value (>= 1.0) is emitted.
+              // ────────────────────────────────────────────────────────────────────
+            } else if (config.protocol == ScaleProtocol.csvPlainText) {
+              // Find the next line terminator (CR or LF)
+              int newlineIndex = -1;
+              for (int i = 0; i < _rawBuffer.length; i++) {
+                final byte = _rawBuffer[i] & 0x7F;
+                if (byte == 0x0A || byte == 0x0D) {
+                  newlineIndex = i;
+                  break;
+                }
+              }
+
+              if (newlineIndex != -1) {
+                foundPacket = true;
+
+                // Extract raw bytes for this line (strip 8th parity bit)
+                final rawLineBytes = _rawBuffer.sublist(0, newlineIndex);
+                _rawBuffer.removeRange(0, newlineIndex + 1);
+
+                // Consume a following \n after \r (CRLF pair) so it isn't
+                // treated as an extra empty line next iteration.
+                if (_rawBuffer.isNotEmpty && (_rawBuffer[0] & 0x7F) == 0x0A) {
+                  _rawBuffer.removeAt(0);
+                }
+
+                final String lineText = ascii.decode(
+                  rawLineBytes.map((b) => b & 0x7F).toList(),
+                  allowInvalid: true,
+                );
+
+                final String? parsed = _parseCSVLine(lineText);
+                if (parsed != null) {
+                  LoggerService().log(
+                    'CSV weight parsed: "$parsed" from line: "${lineText.trim()}"',
+                  );
+                  _weightController.add(parsed);
+                }
               }
             }
           }
-        }
-      }, onError: (e, stack) {
-        LoggerService().log('Stream encountered serial read error on $portName', e, stack);
-        stopListening();
-      });
+        },
+        onError: (e, stack) {
+          LoggerService().log(
+            'Stream encountered serial read error on $portName',
+            e,
+            stack,
+          );
+          stopListening();
+        },
+      );
 
       return true;
     } catch (e, stack) {
-      await LoggerService().log('Fatal exception while starting listener on $portName', e, stack);
+      await LoggerService().log(
+        'Fatal exception while starting listener on $portName',
+        e,
+        stack,
+      );
       return false;
     }
   }
 
   Future<void> stopListening() async {
-    await LoggerService().log('Stopping listener and closing active port/reader references.');
+    await LoggerService().log(
+      'Stopping listener and closing active port/reader references.',
+    );
     try {
       _reader?.close();
     } catch (e) {
@@ -423,12 +494,13 @@ class ScaleService {
     // Safely clear the accumulator buffer when the serial listener is stopped/disconnected.
     _rawBuffer.clear();
   }
+
   String _cleanData(Uint8List data) {
     try {
       // Strip 8th bit (Mask 0x7F) to handle parity bit interference
       final stripped = data.map((b) => b & 0x7F).toList();
       final text = ascii.decode(stripped, allowInvalid: true);
-      
+
       // Filter for weight-related characters (numbers, decimals, units, whitespace)
       final regex = RegExp(r'[^0-9\. kglwb\r\n]', caseSensitive: false);
       return text.replaceAll(regex, '');
@@ -484,7 +556,7 @@ class ScaleService {
         // Strip leading sign (+/-), all whitespace, and trailing unit letters
         final cleaned = field
             .trim()
-            .replaceAll(RegExp(r'^[+\-\s]+'), '')    // leading sign/spaces
+            .replaceAll(RegExp(r'^[+\-\s]+'), '') // leading sign/spaces
             .replaceAll(RegExp(r'[a-zA-Z\s]+$'), '') // trailing unit letters
             .trim();
 
@@ -501,14 +573,18 @@ class ScaleService {
           final dotIndex = cleaned.indexOf('.');
           final decPlaces = dotIndex == -1 ? 0 : cleaned.length - dotIndex - 1;
           final result = val.toStringAsFixed(decPlaces);
-          LoggerService().log('_parseCSVLine: field[$i]="$cleaned" → weight=$result');
+          LoggerService().log(
+            '_parseCSVLine: field[$i]="$cleaned" → weight=$result',
+          );
           return result;
         }
       }
 
       // Fallback: find the first standalone 3+-digit number anywhere in the line.
       // Requires 3+ digits to avoid matching machine IDs like "1".
-      final match = RegExp(r'(?<![0-9])(\d{3,}\.?\d*)(?![0-9])').firstMatch(line);
+      final match = RegExp(
+        r'(?<![0-9])(\d{3,}\.?\d*)(?![0-9])',
+      ).firstMatch(line);
       if (match != null) {
         final numStr = match.group(1)!;
         final double? val = double.tryParse(numStr);

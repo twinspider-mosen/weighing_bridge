@@ -106,7 +106,7 @@ class CameraCaptureService {
     required String subdomain,
 
     required String recordType,
-    required String scaleStockId,
+    String? scaleStockId,
     required String recordStage,
     required String moduleType,
 
@@ -119,26 +119,10 @@ class CameraCaptureService {
       try {
         frontPath = await frontCameraKey.currentState?.captureSnapshot();
       } catch (e) {
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              backgroundColor: Colors.red.shade800,
-              content: Row(
-                children: [
-                  const Icon(Icons.error_outline),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      "Front Camera Capture Error: $e",
-                      style: const TextStyle(color: Colors.white),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
-        }
-        return;
+        await LoggerService().log(
+          "Front camera capture failed (non-critical)",
+          e,
+        );
       }
     }
 
@@ -154,7 +138,7 @@ class CameraCaptureService {
       }
     }
 
-    if ((frontPath == null && backPath == null) || !context.mounted) return;
+    if (!context.mounted) return;
 
     onLoadingChanged(true);
 
