@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:developer';
 import 'dart:io';
 import 'package:dio/dio.dart';
@@ -58,9 +57,11 @@ class ApiService {
     String? scaleStockId,
     required String recordStage,
     required String moduleType,
-    String? vehicleImagePath,
-    String? plateImagePath,
-    dynamic anprResponse,
+    // Per-camera ANPR — only attached when non-null
+    String? frontPlateImagePath,
+    String? frontPlateText,
+    String? backPlateImagePath,
+    String? backPlateText,
   }) async {
     // Build the multipart Form Data
     final Map<String, dynamic> formMap = {
@@ -97,49 +98,36 @@ class ApiService {
       }
     }
 
-    // Attach ANPR vehicle image if provided, otherwise empty string
-    if (vehicleImagePath != null && vehicleImagePath.isNotEmpty) {
-      final vehicleFile = File(vehicleImagePath);
-      if (await vehicleFile.exists()) {
-        formMap['vehicle_image'] = await MultipartFile.fromFile(
-          vehicleFile.path,
-          filename: p.basename(vehicleFile.path),
+    // Attach front ANPR plate image if ANPR was enabled for front camera
+    if (frontPlateImagePath != null && frontPlateImagePath.isNotEmpty) {
+      final file = File(frontPlateImagePath);
+      if (await file.exists()) {
+        formMap['front_plate'] = await MultipartFile.fromFile(
+          file.path,
+          filename: p.basename(file.path),
         );
-      } else {
-        formMap['vehicle_image'] = '';
       }
-    } else {
-      formMap['vehicle_image'] = '';
     }
 
-    // Attach ANPR cropped plate image if provided, otherwise empty string
-    if (plateImagePath != null && plateImagePath.isNotEmpty) {
-      final plateFile = File(plateImagePath);
-      if (await plateFile.exists()) {
-        formMap['plate_image'] = await MultipartFile.fromFile(
-          plateFile.path,
-          filename: p.basename(plateFile.path),
-        );
-      } else {
-        formMap['plate_image'] = '';
-      }
-    } else {
-      formMap['plate_image'] = '';
+    // Attach front plate text if available
+    if (frontPlateText != null && frontPlateText.isNotEmpty) {
+      formMap['front_plate_text'] = frontPlateText;
     }
 
-    // Attach ANPR JSON response if provided, otherwise empty string
-    if (anprResponse != null) {
-      if (anprResponse is String) {
-        formMap['anpr_response'] = anprResponse;
-      } else {
-        try {
-          formMap['anpr_response'] = jsonEncode(anprResponse);
-        } catch (_) {
-          formMap['anpr_response'] = anprResponse.toString();
-        }
+    // Attach back ANPR plate image if ANPR was enabled for back camera
+    if (backPlateImagePath != null && backPlateImagePath.isNotEmpty) {
+      final file = File(backPlateImagePath);
+      if (await file.exists()) {
+        formMap['back_plate'] = await MultipartFile.fromFile(
+          file.path,
+          filename: p.basename(file.path),
+        );
       }
-    } else {
-      formMap['anpr_response'] = '';
+    }
+
+    // Attach back plate text if available
+    if (backPlateText != null && backPlateText.isNotEmpty) {
+      formMap['back_plate_text'] = backPlateText;
     }
 
     final FormData formData = FormData.fromMap(formMap);

@@ -22,8 +22,10 @@ Future<void> showUploadDialog({
   required String moduleType,
   String? vehicleImagePath,
   String? plateImagePath,
-  dynamic anprResponse,
-  String? anprPlateNumber,
+  String? frontPlateImagePath,
+  String? frontPlateText,
+  String? backPlateImagePath,
+  String? backPlateText,
 }) async {
   return showDialog<void>(
     context: context,
@@ -42,8 +44,10 @@ Future<void> showUploadDialog({
         moduleType: moduleType,
         vehicleImagePath: vehicleImagePath,
         plateImagePath: plateImagePath,
-        anprResponse: anprResponse,
-        anprPlateNumber: anprPlateNumber,
+        frontPlateImagePath: frontPlateImagePath,
+        frontPlateText: frontPlateText,
+        backPlateImagePath: backPlateImagePath,
+        backPlateText: backPlateText,
       );
     },
   );
@@ -62,8 +66,10 @@ class UploadDialog extends StatefulWidget {
   final String moduleType;
   final String? vehicleImagePath;
   final String? plateImagePath;
-  final dynamic anprResponse;
-  final String? anprPlateNumber;
+  final String? frontPlateImagePath;
+  final String? frontPlateText;
+  final String? backPlateImagePath;
+  final String? backPlateText;
 
   UploadDialog({
     super.key,
@@ -79,8 +85,10 @@ class UploadDialog extends StatefulWidget {
     required this.moduleType,
     this.vehicleImagePath,
     this.plateImagePath,
-    this.anprResponse,
-    this.anprPlateNumber,
+    this.frontPlateImagePath,
+    this.frontPlateText,
+    this.backPlateImagePath,
+    this.backPlateText,
   });
 
   @override
@@ -181,9 +189,10 @@ class _UploadDialogState extends State<UploadDialog> {
         scaleStockId: widget.scaleStockId,
         recordStage: widget.recordStage,
         moduleType: widget.moduleType,
-        vehicleImagePath: widget.vehicleImagePath,
-        plateImagePath: widget.plateImagePath,
-        anprResponse: widget.anprResponse,
+        frontPlateImagePath: widget.frontPlateImagePath,
+        frontPlateText: widget.frontPlateText,
+        backPlateImagePath: widget.backPlateImagePath,
+        backPlateText: widget.backPlateText,
       );
       // if (response.data != null) {
       print("response = = = = => ${response}");

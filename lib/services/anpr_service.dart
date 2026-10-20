@@ -5,6 +5,7 @@ import 'dart:typed_data';
 import 'package:crypto/crypto.dart';
 import 'package:intl/intl.dart';
 import 'package:path/path.dart' as p;
+import 'package:spider_weighbridge/utils/constants.dart';
 import 'camera_service.dart';
 import 'logger_service.dart';
 
@@ -89,52 +90,40 @@ class AnprService {
   factory AnprService() => _instance;
   AnprService._internal();
 
-  static const String defaultIp = "192.168.0.101";
-  static const String defaultUser = "admin";
-  static const String defaultPassword = "admin@12345";
-
-  /// Resolves IP, Username, and Password from the provided CameraConfig or defaults.
-  static Map<String, String> resolveCredentials(CameraConfig? config) {
-    String ip = defaultIp;
-    String username = defaultUser;
-    String password = defaultPassword;
-
-    if (config != null) {
-      if (config.ipAddress.isNotEmpty) {
-        ip = config.ipAddress;
-      }
-      if (config.rtspUrl.isNotEmpty) {
-        try {
-          final uri = Uri.parse(config.rtspUrl);
-          if (uri.userInfo.isNotEmpty) {
-            final parts = uri.userInfo.split(':');
-            if (parts.isNotEmpty && parts[0].isNotEmpty) {
-              username = Uri.decodeComponent(parts[0]);
-            }
-            if (parts.length > 1) {
-              password = Uri.decodeComponent(parts.sublist(1).join(':'));
-            }
-          }
-          if (uri.host.isNotEmpty) {
-            ip = uri.host;
-          }
-        } catch (_) {}
-      }
+  /// Resolves the camera IP address from the CameraConfig.
+  /// Does NOT use a default hardcoded IP — strictly requires the configured camera's IP.
+  static String? resolveCameraIp(CameraConfig? config) {
+    if (config == null) return null;
+    if (config.ipAddress.trim().isNotEmpty) {
+      return config.ipAddress.trim();
     }
-
-    return {'ip': ip, 'username': username, 'password': password};
+    if (config.rtspUrl.trim().isNotEmpty) {
+      try {
+        final uri = Uri.parse(config.rtspUrl.trim());
+        if (uri.host.isNotEmpty) {
+          return uri.host;
+        }
+      } catch (_) {}
+    }
+    return null;
   }
 
   /// Initiates an ANPR capture session, waiting up to [timeoutSeconds] for a recognized vehicle.
   Future<AnprResult> captureAnpr({
-    CameraConfig? cameraConfig,
+    required CameraConfig? cameraConfig,
     int timeoutSeconds = 15,
     Directory? outputDirectory,
   }) async {
-    final creds = resolveCredentials(cameraConfig);
-    final ip = creds['ip']!;
-    final user = creds['username']!;
-    final pass = creds['password']!;
+    final ip = resolveCameraIp(cameraConfig);
+    if (ip == null || ip.isEmpty) {
+      final errorMsg = "ANPR aborted: No IP address configured for camera '${cameraConfig?.name ?? 'Unknown'}'.";
+      await LoggerService().log(errorMsg);
+      return AnprResult.empty(error: errorMsg);
+    }
+
+    // Fixed username and password from app-wide constants
+    const user = CameraConstants.defaultUsername;
+    const pass = CameraConstants.defaultPassword;
 
     final outDir = outputDirectory ?? Directory("vehicle_capture");
     if (!await outDir.exists()) {

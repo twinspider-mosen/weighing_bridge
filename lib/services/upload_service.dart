@@ -17,9 +17,11 @@ class UploadService {
     required String recordStage,
     required String moduleType,
     bool runOCR = true,
-    String? vehicleImagePath,
-    String? plateImagePath,
-    dynamic anprResponse,
+    // Per-camera ANPR results — only sent when non-null
+    String? frontPlateImagePath,
+    String? frontPlateText,
+    String? backPlateImagePath,
+    String? backPlateText,
   }) async {
     OcrResult? ocrResult;
 
@@ -28,7 +30,6 @@ class UploadService {
     if (runOCR && ocrPath != null && OcrService().isConnected) {
       try {
         ocrResult = await OcrService().scanImage(ocrPath);
-
         await LoggerService().log("OCR Complete: ${ocrResult.labeledTexts}");
       } catch (e) {
         await LoggerService().log("OCR Failed", e);
@@ -47,9 +48,10 @@ class UploadService {
       scaleStockId: scaleStockId,
       recordStage: recordStage,
       moduleType: moduleType,
-      vehicleImagePath: vehicleImagePath,
-      plateImagePath: plateImagePath,
-      anprResponse: anprResponse,
+      frontPlateImagePath: frontPlateImagePath,
+      frontPlateText: frontPlateText,
+      backPlateImagePath: backPlateImagePath,
+      backPlateText: backPlateText,
     );
     print("response = = = = => ${response}");
     LoggerService().log('response = = = = => $response');

@@ -51,6 +51,7 @@ class _WeighingScreenState extends State<WeighingScreen> {
       currentWeightProvider: () => _controller.currentWeight, unitProvider: () => _controller.unit,
       uploadOnCaptureProvider: () => _controller.uploadOnCapture,
       enableFrontProvider: () => _controller.enableFrontCamera, enableBackProvider: () => _controller.enableBackCamera,
+      frontCameraProvider: () => _controller.frontCamera,
       backCameraProvider: () => _controller.backCamera,
     );
   }
@@ -165,6 +166,8 @@ class _WeighingScreenState extends State<WeighingScreen> {
       context: context,
       frontCameraKey: _controller.enableFrontCamera ? _frontCameraKey : null,
       backCameraKey: (_controller.enableBackCamera && _controller.backCamera != null) ? _backCameraKey : null,
+      frontCameraConfig: _controller.frontCamera,
+      backCameraConfig: _controller.backCamera,
       uploadOnCapture: _controller.uploadOnCapture,
       currentWeight: _controller.currentWeight,
       unit: _controller.unit,

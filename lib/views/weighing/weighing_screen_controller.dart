@@ -59,12 +59,16 @@ class WeighingScreenController {
     savedCameras = cameras;
     if (frontCamera != null && !cameras.any((c) => c.id == frontCamera!.id)) {
       frontCamera = null;
+    } else if (frontCamera != null) {
+      frontCamera = cameras.firstWhere((c) => c.id == frontCamera!.id);
     }
     if (frontCamera == null && cameras.isNotEmpty) {
       frontCamera = cameras.first;
     }
     if (backCamera != null && !cameras.any((c) => c.id == backCamera!.id)) {
       backCamera = null;
+    } else if (backCamera != null) {
+      backCamera = cameras.firstWhere((c) => c.id == backCamera!.id);
     }
     if (backCamera == null && cameras.length > 1) {
       backCamera = cameras[1];

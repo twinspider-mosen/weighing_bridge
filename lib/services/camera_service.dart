@@ -6,7 +6,6 @@ import 'package:spider_weighbridge/components/upload_dialog.dart';
 import 'package:spider_weighbridge/services/anpr_service.dart';
 import 'package:spider_weighbridge/services/logger_service.dart';
 import 'package:spider_weighbridge/services/ocr_service.dart';
-import 'package:spider_weighbridge/services/settings_service.dart';
 import 'package:spider_weighbridge/services/upload_service.dart';
 
 class CameraConfig {
@@ -15,11 +14,15 @@ class CameraConfig {
   final String ipAddress;
   final String rtspUrl;
 
+  /// When true, ANPR capture is triggered for this camera on every request.
+  final bool enableAnpr;
+
   CameraConfig({
     required this.id,
     required this.name,
     required this.ipAddress,
     required this.rtspUrl,
+    this.enableAnpr = false,
   });
 
   Map<String, dynamic> toJson() => {
@@ -27,6 +30,7 @@ class CameraConfig {
     'name': name,
     'ipAddress': ipAddress,
     'rtspUrl': rtspUrl,
+    'enableAnpr': enableAnpr,
   };
 
   factory CameraConfig.fromJson(Map<String, dynamic> json) => CameraConfig(
@@ -34,6 +38,21 @@ class CameraConfig {
     name: json['name'] as String,
     ipAddress: json['ipAddress'] as String,
     rtspUrl: json['rtspUrl'] as String,
+    enableAnpr: json['enableAnpr'] as bool? ?? false,
+  );
+
+  CameraConfig copyWith({
+    String? id,
+    String? name,
+    String? ipAddress,
+    String? rtspUrl,
+    bool? enableAnpr,
+  }) => CameraConfig(
+    id: id ?? this.id,
+    name: name ?? this.name,
+    ipAddress: ipAddress ?? this.ipAddress,
+    rtspUrl: rtspUrl ?? this.rtspUrl,
+    enableAnpr: enableAnpr ?? this.enableAnpr,
   );
 
   @override
@@ -97,6 +116,13 @@ class CameraCaptureService {
     required BuildContext context,
     GlobalKey<LiveCameraPlayerState>? frontCameraKey,
     GlobalKey<LiveCameraPlayerState>? backCameraKey,
+
+    /// Full CameraConfig for the front camera (used for ANPR if enableAnpr==true).
+    CameraConfig? frontCameraConfig,
+
+    /// Full CameraConfig for the back camera (used for ANPR if enableAnpr==true).
+    CameraConfig? backCameraConfig,
+
     bool autoUpload = false,
     required bool uploadOnCapture,
 
@@ -111,7 +137,6 @@ class CameraCaptureService {
     String? scaleStockId,
     required String recordStage,
     required String moduleType,
-    CameraConfig? anprCameraConfig,
 
     required Function(bool loading) onLoadingChanged,
   }) async {
@@ -122,47 +147,56 @@ class CameraCaptureService {
       try {
         frontPath = await frontCameraKey.currentState?.captureSnapshot();
       } catch (e) {
-        await LoggerService().log(
-          "Front camera capture failed (non-critical)",
-          e,
-        );
+        await LoggerService().log("Front camera capture failed (non-critical)", e);
       }
     }
 
-    // Capture back image silently (optional, don't fail whole operation)
     if (backCameraKey != null) {
       try {
         backPath = await backCameraKey.currentState?.captureSnapshot();
       } catch (e) {
-        await LoggerService().log(
-          "Back camera capture failed (non-critical)",
-          e,
-        );
+        await LoggerService().log("Back camera capture failed (non-critical)", e);
       }
     }
 
     if (!context.mounted) return;
-
     onLoadingChanged(true);
 
-    // If ANPR is enabled from settings, trigger ANPR capture session
-    AnprResult? anprResult;
-    try {
-      final anprEnabled = await SettingsService().getEnableAnpr();
-      if (anprEnabled) {
-        await LoggerService().log(
-          "ANPR is enabled: Initiating Dahua ANPR stream capture...",
-        );
-        anprResult = await AnprService().captureAnpr(
-          cameraConfig: anprCameraConfig,
-        );
-        await LoggerService().log(
-          "ANPR session complete. Success: ${anprResult.success}, Plate: ${anprResult.plateNumber}",
-        );
+    // ── Per-camera ANPR ────────────────────────────────────────────────────────
+    // Run ANPR independently for front and back cameras when their flag is set.
+    String? frontPlateImagePath;
+    String? frontPlateText;
+    String? backPlateImagePath;
+    String? backPlateText;
+
+    if (frontCameraConfig?.enableAnpr == true) {
+      try {
+        await LoggerService().log("Front ANPR: starting capture from ${frontCameraConfig!.ipAddress}");
+        final result = await AnprService().captureAnpr(cameraConfig: frontCameraConfig);
+        await LoggerService().log("Front ANPR: success=${result.success}, plate=${result.plateNumber}");
+        if (result.success) {
+          frontPlateImagePath = result.plateImagePath;
+          frontPlateText = result.plateNumber;
+        }
+      } catch (e, stack) {
+        await LoggerService().log("Front ANPR exception (non-critical)", e, stack);
       }
-    } catch (e, stack) {
-      await LoggerService().log("ANPR capture flow exception (non-critical)", e, stack);
     }
+
+    if (backCameraConfig?.enableAnpr == true) {
+      try {
+        await LoggerService().log("Back ANPR: starting capture from ${backCameraConfig!.ipAddress}");
+        final result = await AnprService().captureAnpr(cameraConfig: backCameraConfig);
+        await LoggerService().log("Back ANPR: success=${result.success}, plate=${result.plateNumber}");
+        if (result.success) {
+          backPlateImagePath = result.plateImagePath;
+          backPlateText = result.plateNumber;
+        }
+      } catch (e, stack) {
+        await LoggerService().log("Back ANPR exception (non-critical)", e, stack);
+      }
+    }
+    // ──────────────────────────────────────────────────────────────────────────
 
     try {
       if (uploadOnCapture) {
@@ -178,9 +212,10 @@ class CameraCaptureService {
             scaleStockId: scaleStockId,
             recordStage: recordStage,
             moduleType: moduleType,
-            vehicleImagePath: anprResult?.vehicleImagePath,
-            plateImagePath: anprResult?.plateImagePath,
-            anprResponse: anprResult?.anprResponse,
+            frontPlateImagePath: frontPlateImagePath,
+            frontPlateText: frontPlateText,
+            backPlateImagePath: backPlateImagePath,
+            backPlateText: backPlateText,
           );
         } else {
           await showUploadDialog(
@@ -195,26 +230,18 @@ class CameraCaptureService {
             scaleStockId: scaleStockId,
             recordStage: recordStage,
             moduleType: moduleType,
-            vehicleImagePath: anprResult?.vehicleImagePath,
-            plateImagePath: anprResult?.plateImagePath,
-            anprResponse: anprResult?.anprResponse,
-            anprPlateNumber: anprResult?.plateNumber,
+            frontPlateImagePath: frontPlateImagePath,
+            frontPlateText: frontPlateText,
+            backPlateImagePath: backPlateImagePath,
+            backPlateText: backPlateText,
           );
         }
       } else {
         if (frontPath != null) {
-          await _handleDirectSave(
-            context: context,
-            path: frontPath,
-            label: "Front snapshot",
-          );
+          await _handleDirectSave(context: context, path: frontPath, label: "Front snapshot");
         }
         if (backPath != null && context.mounted) {
-          await _handleDirectSave(
-            context: context,
-            path: backPath,
-            label: "Back snapshot",
-          );
+          await _handleDirectSave(context: context, path: backPath, label: "Back snapshot");
         }
       }
     } finally {

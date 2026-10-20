@@ -274,10 +274,65 @@ class CameraFeedPanel extends StatelessWidget {
               ),
             ),
             if (camera != null) ...[
-              const SizedBox(width: 8),
+              Tooltip(
+                message: camera.enableAnpr
+                    ? 'ANPR Enabled (Click to disable)'
+                    : 'ANPR Disabled (Click to enable)',
+                child: InkWell(
+                  onTap: () async {
+                    final updated = camera.copyWith(
+                      enableAnpr: !camera.enableAnpr,
+                    );
+                    await CameraStorageService().saveCamera(updated);
+                    onCameraChanged(updated);
+                  },
+                  borderRadius: BorderRadius.circular(6),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 3,
+                    ),
+                    decoration: BoxDecoration(
+                      color: camera.enableAnpr
+                          ? Colors.greenAccent.withOpacity(0.15)
+                          : Colors.white.withOpacity(0.05),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(
+                        color: camera.enableAnpr
+                            ? Colors.greenAccent
+                            : Colors.white24,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.document_scanner_outlined,
+                          size: 13,
+                          color: camera.enableAnpr
+                              ? Colors.greenAccent
+                              : Colors.white38,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          camera.enableAnpr ? "ANPR ON" : "ANPR OFF",
+                          style: GoogleFonts.inter(
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                            color: camera.enableAnpr
+                                ? Colors.greenAccent
+                                : Colors.white38,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 4),
               GestureDetector(
                 onTap: onRefresh,
-                child: Icon(Icons.refresh, color: Colors.tealAccent, size: 18),
+                child: const Icon(Icons.refresh, color: Colors.tealAccent, size: 18),
               ),
             ],
           ],

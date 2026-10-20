@@ -15,6 +15,11 @@ class CommandModel {
   final String recordStage;
   final String moduleType;
 
+  final File? frontPlate;
+  final String? frontPlateText;
+  final File? backPlate;
+  final String? backPlateText;
+
   CommandModel({
     required this.subdomain,
     required this.requestID,
@@ -27,6 +32,10 @@ class CommandModel {
     required this.recordType,
     required this.recordStage,
     required this.moduleType,
+    this.frontPlate,
+    this.frontPlateText,
+    this.backPlate,
+    this.backPlateText,
   });
 
   CommandModel copyWith({
@@ -41,6 +50,10 @@ class CommandModel {
     String? scaleStockId,
     String? recordStage,
     String? moduleType,
+    File? frontPlate,
+    String? frontPlateText,
+    File? backPlate,
+    String? backPlateText,
   }) {
     return CommandModel(
       subdomain: subdomain ?? this.subdomain,
@@ -54,6 +67,10 @@ class CommandModel {
       scaleStockId: scaleStockId ?? this.scaleStockId,
       recordStage: recordStage ?? this.recordStage,
       moduleType: moduleType ?? this.moduleType,
+      frontPlate: frontPlate ?? this.frontPlate,
+      frontPlateText: frontPlateText ?? this.frontPlateText,
+      backPlate: backPlate ?? this.backPlate,
+      backPlateText: backPlateText ?? this.backPlateText,
     );
   }
 
@@ -72,6 +89,16 @@ class CommandModel {
           : null,
       recordStage: data['record_stage'] ?? '',
       moduleType: data['module_type'] ?? '',
+      frontPlate: data['front_plate'] != null &&
+              data['front_plate'].toString().isNotEmpty
+          ? File(data['front_plate'].toString())
+          : null,
+      frontPlateText: data['front_plate_text']?.toString(),
+      backPlate: data['back_plate'] != null &&
+              data['back_plate'].toString().isNotEmpty
+          ? File(data['back_plate'].toString())
+          : null,
+      backPlateText: data['back_plate_text']?.toString(),
     );
   }
 
@@ -92,7 +119,7 @@ class CommandModel {
   }
 
   Map<String, dynamic> toMap() {
-    return {
+    final map = <String, dynamic>{
       'subdomain': subdomain,
       'request_id': requestID,
       'scale_name': scaleName,
@@ -105,6 +132,21 @@ class CommandModel {
       'record_stage': recordStage,
       'module_type': moduleType,
     };
+
+    if (frontPlate != null && frontPlate!.path.isNotEmpty) {
+      map['front_plate'] = frontPlate!.path;
+    }
+    if (frontPlateText != null && frontPlateText!.isNotEmpty) {
+      map['front_plate_text'] = frontPlateText;
+    }
+    if (backPlate != null && backPlate!.path.isNotEmpty) {
+      map['back_plate'] = backPlate!.path;
+    }
+    if (backPlateText != null && backPlateText!.isNotEmpty) {
+      map['back_plate_text'] = backPlateText;
+    }
+
+    return map;
   }
 
   @override
@@ -122,30 +164,61 @@ CommandModel(
   scaleStockId: $scaleStockId,
   recordStage: $recordStage,
   moduleType: $moduleType,
+  frontPlate: ${frontPlate?.path},
+  frontPlateText: $frontPlateText,
+  backPlate: ${backPlate?.path},
+  backPlateText: $backPlateText,
 )
 ''';
   }
 
   Future<FormData> toFormData() async {
-    return FormData.fromMap({
+    final Map<String, dynamic> map = {
       'subdomain': subdomain.trim(),
       'request_id': requestID.trim(),
       'scale_name': scaleName.trim(),
-
       'weight': weight,
       'status': status.trim(),
       'scale_stock_id': scaleStockId,
       'record_type': recordType.trim(),
       'record_stage': recordStage.trim(),
       'module_type': moduleType.trim(),
-      'front_image': MultipartFile.fromFile(
+    };
+
+    if (await frontImage.exists()) {
+      map['front_image'] = await MultipartFile.fromFile(
         frontImage.path,
-        filename: frontImage.path.split('/').last,
-      ),
-      'back_image': MultipartFile.fromFile(
+        filename: frontImage.path.split(Platform.pathSeparator).last,
+      );
+    }
+    if (await backImage.exists()) {
+      map['back_image'] = await MultipartFile.fromFile(
         backImage.path,
-        filename: backImage.path.split('/').last,
-      ),
-    });
+        filename: backImage.path.split(Platform.pathSeparator).last,
+      );
+    }
+
+    // Only send ANPR keys if available
+    if (frontPlate != null && await frontPlate!.exists()) {
+      map['front_plate'] = await MultipartFile.fromFile(
+        frontPlate!.path,
+        filename: frontPlate!.path.split(Platform.pathSeparator).last,
+      );
+    }
+    if (frontPlateText != null && frontPlateText!.isNotEmpty) {
+      map['front_plate_text'] = frontPlateText;
+    }
+
+    if (backPlate != null && await backPlate!.exists()) {
+      map['back_plate'] = await MultipartFile.fromFile(
+        backPlate!.path,
+        filename: backPlate!.path.split(Platform.pathSeparator).last,
+      );
+    }
+    if (backPlateText != null && backPlateText!.isNotEmpty) {
+      map['back_plate_text'] = backPlateText;
+    }
+
+    return FormData.fromMap(map);
   }
 }

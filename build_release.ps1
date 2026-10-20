@@ -32,7 +32,7 @@ if ($pubspecContent -match 'version:\s*([^\r\n]+)') {
 Write-Host "Current Configured Version: $rawVersion" -ForegroundColor Cyan
 
 # 2. Generate CalVer (YYYY.MM.DD.Revision)
-$todayPrefix = (Get-Date).ToString("yyyy.MM.dd")
+$todayPrefix = (Get-Date).ToString("yy.MM.dd")
 
 if ($Version) {
     # Custom version passed manually

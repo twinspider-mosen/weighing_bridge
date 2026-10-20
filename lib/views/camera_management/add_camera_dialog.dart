@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:spider_weighbridge/components/custom_text_field.dart';
 import 'package:spider_weighbridge/services/camera_service.dart';
+import 'package:spider_weighbridge/utils/constants.dart';
 
 class AddCameraDialog extends StatefulWidget {
   final Function(CameraConfig) onCameraAdded;
@@ -16,6 +17,7 @@ class _AddCameraDialogState extends State<AddCameraDialog> {
   final _nameController = TextEditingController();
   final _ipController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
+  bool _enableAnpr = false;
 
   @override
   void dispose() {
@@ -61,6 +63,59 @@ class _AddCameraDialogState extends State<AddCameraDialog> {
                 'Tip: Enter an IP like 192.168.0.31 to automatically configure standard Dahua/Hikvision RTSP stream, or enter full rtsp:// URL.',
                 style: GoogleFonts.inter(fontSize: 11, color: Colors.white54),
               ),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.05),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: _enableAnpr
+                        ? Colors.greenAccent.withValues(alpha: 0.4)
+                        : Colors.white.withValues(alpha: 0.1),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.camera_alt_outlined,
+                      color: _enableAnpr ? Colors.greenAccent : Colors.white54,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Enable ANPR',
+                            style: GoogleFonts.inter(
+                              color: Colors.white,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          Text(
+                            'Extract number plate image and text via Dahua/Hikvision API',
+                            style: GoogleFonts.inter(
+                              color: Colors.white54,
+                              fontSize: 10,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Switch(
+                      value: _enableAnpr,
+                      activeColor: Colors.greenAccent,
+                      onChanged: (val) => setState(() => _enableAnpr = val),
+                    ),
+                  ],
+                ),
+              ),
             ],
           ),
         ),
@@ -80,8 +135,7 @@ class _AddCameraDialogState extends State<AddCameraDialog> {
 
               if (!rtspUrl.startsWith('rtsp://') &&
                   !rtspUrl.startsWith('http://')) {
-                rtspUrl =
-                    "rtsp://admin:admin%4012345@$ipInput:554/cam/realmonitor?channel=1&subtype=1";
+                rtspUrl = CameraConstants.buildRtspUrl(ipInput);
               } else {
                 final uri = Uri.tryParse(rtspUrl);
                 if (uri != null && uri.host.isNotEmpty) {
@@ -94,6 +148,7 @@ class _AddCameraDialogState extends State<AddCameraDialog> {
                 name: name,
                 ipAddress: ipAddress,
                 rtspUrl: rtspUrl,
+                enableAnpr: _enableAnpr,
               );
 
               widget.onCameraAdded(newCamera);

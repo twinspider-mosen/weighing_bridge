@@ -25,7 +25,7 @@ class WeighingCommandService {
     required bool Function() uploadOnCaptureProvider,
     required bool Function() enableFrontProvider,
     required bool Function() enableBackProvider,
-    CameraConfig? Function()? frontCameraProvider,
+    required CameraConfig? Function() frontCameraProvider,
     required CameraConfig? Function() backCameraProvider,
   }) async {
     final details = await HelperFunctions.getSystemDetails();
@@ -130,13 +130,12 @@ class WeighingCommandService {
                       docId: docId,
                       command: command,
                       onLoadingChanged: onLoadingChanged,
-                      frontKey: enableFrontProvider()
-                          ? frontKeyProvider()
-                          : null,
-                      backKey:
-                          (enableBackProvider() && backCameraProvider() != null)
+                      frontKey: enableFrontProvider() ? frontKeyProvider() : null,
+                      backKey: (enableBackProvider() && backCameraProvider() != null)
                           ? backKeyProvider()
                           : null,
+                      frontCameraConfig: frontCameraProvider(),
+                      backCameraConfig: backCameraProvider(),
                       uploadOnCapture: uploadOnCaptureProvider(),
                       currentWeight: currentWeightProvider(),
                       unit: unitProvider(),
@@ -182,10 +181,11 @@ class WeighingCommandService {
                     command: command,
                     onLoadingChanged: onLoadingChanged,
                     frontKey: enableFrontProvider() ? frontKeyProvider() : null,
-                    backKey:
-                        (enableBackProvider() && backCameraProvider() != null)
+                    backKey: (enableBackProvider() && backCameraProvider() != null)
                         ? backKeyProvider()
                         : null,
+                    frontCameraConfig: frontCameraProvider(),
+                    backCameraConfig: backCameraProvider(),
                     uploadOnCapture: uploadOnCaptureProvider(),
                     currentWeight: currentWeightProvider(),
                     unit: unitProvider(),
@@ -219,16 +219,19 @@ class WeighingCommandService {
     required void Function(bool) onLoadingChanged,
     required GlobalKey<LiveCameraPlayerState>? frontKey,
     required GlobalKey<LiveCameraPlayerState>? backKey,
+    CameraConfig? frontCameraConfig,
+    CameraConfig? backCameraConfig,
     required bool uploadOnCapture,
     required String currentWeight,
     required String unit,
   }) async {
-    // Cameras are optional: attempt capture if available, otherwise proceed with weight-only upload.
     await CameraCaptureService.captureAndHandle(
       context: context,
       autoUpload: true,
       frontCameraKey: frontKey,
       backCameraKey: backKey,
+      frontCameraConfig: frontCameraConfig,
+      backCameraConfig: backCameraConfig,
       uploadOnCapture: uploadOnCapture,
       currentWeight: currentWeight,
       unit: unit,
