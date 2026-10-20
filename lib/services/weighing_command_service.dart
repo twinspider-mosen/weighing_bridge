@@ -13,11 +13,6 @@ class WeighingCommandService {
   final SettingsService _settingsService = SettingsService();
   StreamSubscription? _commandSubscription;
 
-  /// Tracks request IDs already handled in this session to prevent duplicate
-  /// processing when the Firestore stream replays existing 'pending' docs on
-  /// startup or on reconnect.
-  final Set<String> _handledRequestIds = {};
-
   Future<void> initCommandListener({
     required BuildContext Function() contextProvider,
     required bool Function() isMounted,
@@ -43,27 +38,7 @@ class WeighingCommandService {
       return;
     }
 
-    // ── Snapshot the current pending request IDs at startup so we do NOT
-    // process stale requests that were already sitting in Firestore before
-    // the app launched. Only NEW additions after this point are processed.
-    try {
-      final existingSnapshot = await FirebaseFirestore.instance
-          .collection('ScaleRequests')
-          .where('scale_name', isEqualTo: scaleName)
-          .where('subdomain', whereIn: subdomains)
-          .where('status', isEqualTo: 'pending')
-          .get();
-      for (final doc in existingSnapshot.docs) {
-        _handledRequestIds.add(doc.id);
-      }
-      LoggerService().log(
-        "Firestore listener ready. Pre-seeded ${_handledRequestIds.length} existing pending doc(s) to skip.",
-      );
-    } catch (e) {
-      LoggerService().log(
-        "Could not pre-seed existing pending requests (non-critical): $e",
-      );
-    }
+    LoggerService().log("Firestore listener starting for scale: $scaleName");
 
     _commandSubscription =
         FirebaseService.getCommandStream(
@@ -75,13 +50,6 @@ class WeighingCommandService {
               if (change.type != DocumentChangeType.added) continue;
 
               final docId = change.doc.id;
-
-              // Skip docs that existed before the listener started.
-              // if (_handledRequestIds.contains(docId)) {
-              //   LoggerService().log("Skipping pre-existing doc: $docId");
-              //   continue;
-              // }
-              // _handledRequestIds.add(docId);
 
               CommandModel command;
               try {
@@ -97,16 +65,33 @@ class WeighingCommandService {
                 "NEW COMMAND RECEIVED: Request ID: ${command.requestID} (doc: $docId)",
               );
 
-              // Mark as 'processing' immediately so the server/other clients
-              // know we accepted it and no duplicate dispatch happens.
+              // Atomically claim the request: only update to 'processing' if
+              // the document is still 'pending'. This prevents two clients or
+              // two listener reconnects from both processing the same request.
+              bool claimed = false;
               try {
-                await FirebaseFirestore.instance
+                final docRef = FirebaseFirestore.instance
                     .collection('ScaleRequests')
-                    .doc(docId)
-                    .update({'status': 'processing'});
+                    .doc(docId);
+
+                await FirebaseFirestore.instance.runTransaction((txn) async {
+                  final snapshot = await txn.get(docRef);
+                  if (!snapshot.exists) return; // doc was deleted, skip
+                  final currentStatus = snapshot.data()?['status'] as String?;
+                  if (currentStatus != 'pending') return; // already claimed
+                  txn.update(docRef, {'status': 'processing'});
+                  claimed = true;
+                });
               } catch (e) {
                 LoggerService().log(
-                  "Could not mark request as processing: $e — aborting to avoid duplicate.",
+                  "Transaction error while claiming request $docId: $e",
+                );
+                continue;
+              }
+
+              if (!claimed) {
+                LoggerService().log(
+                  "Request $docId already claimed by another client — skipping.",
                 );
                 continue;
               }
