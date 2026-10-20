@@ -13,7 +13,7 @@ class LogViewerScreen extends StatefulWidget {
 
 class _LogViewerScreenState extends State<LogViewerScreen> {
   final LoggerService _loggerService = LoggerService();
-  String _logsText = 'Loading logs...';
+  List<String> _logLines = [];
   String _filePath = '';
   bool _isLoading = true;
 
@@ -25,11 +25,11 @@ class _LogViewerScreenState extends State<LogViewerScreen> {
 
   Future<void> _loadLogs() async {
     setState(() => _isLoading = true);
-    final logs = await _loggerService.readLogs();
+    final lines = await _loggerService.readLastLogLines(maxLines: 500);
     final path = await _loggerService.getLogFilePath();
     if (mounted) {
       setState(() {
-        _logsText = logs;
+        _logLines = lines;
         _filePath = path;
         _isLoading = false;
       });
@@ -97,7 +97,8 @@ class _LogViewerScreenState extends State<LogViewerScreen> {
   }
 
   Future<void> _copyToClipboard() async {
-    await Clipboard.setData(ClipboardData(text: _logsText));
+    final text = _logLines.join('\n');
+    await Clipboard.setData(ClipboardData(text: text));
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -106,7 +107,10 @@ class _LogViewerScreenState extends State<LogViewerScreen> {
             children: [
               const Icon(Icons.copy_all, color: Colors.white),
               const SizedBox(width: 8),
-              Text('Logs copied to clipboard', style: GoogleFonts.inter()),
+              Text(
+                'Copied ${_logLines.length} log lines to clipboard',
+                style: GoogleFonts.inter(),
+              ),
             ],
           ),
         ),
@@ -137,9 +141,7 @@ class _LogViewerScreenState extends State<LogViewerScreen> {
           IconButton(
             icon: const Icon(Icons.copy, color: Colors.tealAccent, size: 20),
             tooltip: 'Copy Logs',
-            onPressed: _logsText.isEmpty || _isLoading
-                ? null
-                : _copyToClipboard,
+            onPressed: _logLines.isEmpty || _isLoading ? null : _copyToClipboard,
           ),
           IconButton(
             icon: const Icon(
@@ -225,11 +227,32 @@ class _LogViewerScreenState extends State<LogViewerScreen> {
                                 ],
                               ),
                             ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.greenAccent.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(
+                                  color: Colors.greenAccent.withOpacity(0.3),
+                                ),
+                              ),
+                              child: Text(
+                                '${_logLines.length} / 500 lines',
+                                style: GoogleFonts.robotoMono(
+                                  color: Colors.greenAccent,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
                           ],
                         ),
                       ),
                       const SizedBox(height: 16),
-                      // Log Text Area
+                      // Log Text Area - Virtualized ListView
                       Expanded(
                         child: Container(
                           decoration: BoxDecoration(
@@ -241,19 +264,41 @@ class _LogViewerScreenState extends State<LogViewerScreen> {
                           ),
                           child: ClipRRect(
                             borderRadius: BorderRadius.circular(16),
-                            child: SingleChildScrollView(
-                              padding: const EdgeInsets.all(16.0),
-                              child: SelectionArea(
-                                child: Text(
-                                  _logsText,
-                                  style: GoogleFonts.robotoMono(
-                                    color: Colors.greenAccent.shade200,
-                                    fontSize: 12,
-                                    height: 1.5,
+                            child: _logLines.isEmpty
+                                ? Center(
+                                    child: Text(
+                                      'No logs available',
+                                      style: GoogleFonts.robotoMono(
+                                        color: Colors.white38,
+                                        fontSize: 13,
+                                      ),
+                                    ),
+                                  )
+                                : SelectionArea(
+                                    child: ListView.builder(
+                                      padding: const EdgeInsets.all(16.0),
+                                      itemCount: _logLines.length,
+                                      itemBuilder: (context, index) {
+                                        final line = _logLines[index];
+                                        final isError = line.toLowerCase().contains('error') ||
+                                            line.toLowerCase().contains('exception') ||
+                                            line.toLowerCase().contains('fail');
+                                        return Padding(
+                                          padding: const EdgeInsets.symmetric(vertical: 2.0),
+                                          child: Text(
+                                            line,
+                                            style: GoogleFonts.robotoMono(
+                                              color: isError
+                                                  ? Colors.redAccent.shade100
+                                                  : Colors.greenAccent.shade200,
+                                              fontSize: 12,
+                                              height: 1.4,
+                                            ),
+                                          ),
+                                        );
+                                      },
+                                    ),
                                   ),
-                                ),
-                              ),
-                            ),
                           ),
                         ),
                       ),

@@ -57,6 +57,22 @@ class SettingsService {
     await prefs.setBool(_keyEnableBackCamera, value);
   }
 
+  // ── ANPR (Automatic Number Plate Recognition) ─────────────────────────────
+
+  static const String _keyEnableAnpr = 'settings_enable_anpr';
+
+  /// Retrieves the 'Enable ANPR' preference. Defaults to `false`.
+  Future<bool> getEnableAnpr() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_keyEnableAnpr) ?? false;
+  }
+
+  /// Saves the 'Enable ANPR' preference.
+  Future<void> setEnableAnpr(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_keyEnableAnpr, value);
+  }
+
   // ── Scale Protocol ──────────────────────────────────────────────────────────
 
   static const String _keyScaleProtocol = 'settings_scale_protocol';

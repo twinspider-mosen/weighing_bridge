@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:developer';
 import 'dart:io';
 import 'package:dio/dio.dart';
@@ -57,6 +58,9 @@ class ApiService {
     String? scaleStockId,
     required String recordStage,
     required String moduleType,
+    String? vehicleImagePath,
+    String? plateImagePath,
+    dynamic anprResponse,
   }) async {
     // Build the multipart Form Data
     final Map<String, dynamic> formMap = {
@@ -91,6 +95,51 @@ class ApiService {
           filename: p.basename(backFile.path),
         );
       }
+    }
+
+    // Attach ANPR vehicle image if provided, otherwise empty string
+    if (vehicleImagePath != null && vehicleImagePath.isNotEmpty) {
+      final vehicleFile = File(vehicleImagePath);
+      if (await vehicleFile.exists()) {
+        formMap['vehicle_image'] = await MultipartFile.fromFile(
+          vehicleFile.path,
+          filename: p.basename(vehicleFile.path),
+        );
+      } else {
+        formMap['vehicle_image'] = '';
+      }
+    } else {
+      formMap['vehicle_image'] = '';
+    }
+
+    // Attach ANPR cropped plate image if provided, otherwise empty string
+    if (plateImagePath != null && plateImagePath.isNotEmpty) {
+      final plateFile = File(plateImagePath);
+      if (await plateFile.exists()) {
+        formMap['plate_image'] = await MultipartFile.fromFile(
+          plateFile.path,
+          filename: p.basename(plateFile.path),
+        );
+      } else {
+        formMap['plate_image'] = '';
+      }
+    } else {
+      formMap['plate_image'] = '';
+    }
+
+    // Attach ANPR JSON response if provided, otherwise empty string
+    if (anprResponse != null) {
+      if (anprResponse is String) {
+        formMap['anpr_response'] = anprResponse;
+      } else {
+        try {
+          formMap['anpr_response'] = jsonEncode(anprResponse);
+        } catch (_) {
+          formMap['anpr_response'] = anprResponse.toString();
+        }
+      }
+    } else {
+      formMap['anpr_response'] = '';
     }
 
     final FormData formData = FormData.fromMap(formMap);

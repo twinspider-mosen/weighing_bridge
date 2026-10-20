@@ -20,6 +20,10 @@ Future<void> showUploadDialog({
   String? scaleStockId,
   required String recordStage,
   required String moduleType,
+  String? vehicleImagePath,
+  String? plateImagePath,
+  dynamic anprResponse,
+  String? anprPlateNumber,
 }) async {
   return showDialog<void>(
     context: context,
@@ -36,6 +40,10 @@ Future<void> showUploadDialog({
         subdomain: subdomain,
         recordStage: recordStage,
         moduleType: moduleType,
+        vehicleImagePath: vehicleImagePath,
+        plateImagePath: plateImagePath,
+        anprResponse: anprResponse,
+        anprPlateNumber: anprPlateNumber,
       );
     },
   );
@@ -52,6 +60,10 @@ class UploadDialog extends StatefulWidget {
   final String subdomain;
   final String recordStage;
   final String moduleType;
+  final String? vehicleImagePath;
+  final String? plateImagePath;
+  final dynamic anprResponse;
+  final String? anprPlateNumber;
 
   UploadDialog({
     super.key,
@@ -65,6 +77,10 @@ class UploadDialog extends StatefulWidget {
     required this.subdomain,
     required this.recordStage,
     required this.moduleType,
+    this.vehicleImagePath,
+    this.plateImagePath,
+    this.anprResponse,
+    this.anprPlateNumber,
   });
 
   @override
@@ -165,6 +181,9 @@ class _UploadDialogState extends State<UploadDialog> {
         scaleStockId: widget.scaleStockId,
         recordStage: widget.recordStage,
         moduleType: widget.moduleType,
+        vehicleImagePath: widget.vehicleImagePath,
+        plateImagePath: widget.plateImagePath,
+        anprResponse: widget.anprResponse,
       );
       // if (response.data != null) {
       print("response = = = = => ${response}");

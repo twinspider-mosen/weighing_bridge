@@ -105,9 +105,9 @@ class SimulationOcrEngine implements BaseOcrEngine {
       // Default mock result
       return OcrResult(
         rawText:
-            "ANTIGRAVITY INDUSTRIAL SYSTEM v2.0\nGATEWAY 4\nWEIGH VALUE STABLE\nTRUCK ID: TR-9981",
+            "INDUSTRIAL SYSTEM v2.0\nGATEWAY 4\nWEIGH VALUE STABLE\nTRUCK ID: TR-9981",
         labeledTexts: {
-          "Sign Board": "ANTIGRAVITY INDUSTRIAL SYSTEM v2.0",
+          "Sign Board": "INDUSTRIAL SYSTEM v2.0",
           "Truck Identifier": "TR-9981",
           "Operational Terminal": "GATEWAY 4",
         },

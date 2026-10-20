@@ -30,6 +30,7 @@ class WeighingCommandService {
     required bool Function() uploadOnCaptureProvider,
     required bool Function() enableFrontProvider,
     required bool Function() enableBackProvider,
+    CameraConfig? Function()? frontCameraProvider,
     required CameraConfig? Function() backCameraProvider,
   }) async {
     final details = await HelperFunctions.getSystemDetails();

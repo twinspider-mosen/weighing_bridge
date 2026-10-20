@@ -11,7 +11,7 @@ class WeighingScreenController {
   final CameraStorageService cameraStorage = CameraStorageService();
   final SettingsService settingsService = SettingsService();
   // need to update before build
-  String currentWeight = '1234.00';
+  String currentWeight = '99999.00';
   String unit = 'kg';
   String? selectedPort;
   bool isScanning = false;

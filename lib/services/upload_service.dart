@@ -17,6 +17,9 @@ class UploadService {
     required String recordStage,
     required String moduleType,
     bool runOCR = true,
+    String? vehicleImagePath,
+    String? plateImagePath,
+    dynamic anprResponse,
   }) async {
     OcrResult? ocrResult;
 
@@ -44,6 +47,9 @@ class UploadService {
       scaleStockId: scaleStockId,
       recordStage: recordStage,
       moduleType: moduleType,
+      vehicleImagePath: vehicleImagePath,
+      plateImagePath: plateImagePath,
+      anprResponse: anprResponse,
     );
     print("response = = = = => ${response}");
     LoggerService().log('response = = = = => $response');

@@ -3,8 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:spider_weighbridge/components/live_camera_player.dart';
 import 'package:spider_weighbridge/components/upload_dialog.dart';
+import 'package:spider_weighbridge/services/anpr_service.dart';
 import 'package:spider_weighbridge/services/logger_service.dart';
 import 'package:spider_weighbridge/services/ocr_service.dart';
+import 'package:spider_weighbridge/services/settings_service.dart';
 import 'package:spider_weighbridge/services/upload_service.dart';
 
 class CameraConfig {
@@ -109,6 +111,7 @@ class CameraCaptureService {
     String? scaleStockId,
     required String recordStage,
     required String moduleType,
+    CameraConfig? anprCameraConfig,
 
     required Function(bool loading) onLoadingChanged,
   }) async {
@@ -142,6 +145,25 @@ class CameraCaptureService {
 
     onLoadingChanged(true);
 
+    // If ANPR is enabled from settings, trigger ANPR capture session
+    AnprResult? anprResult;
+    try {
+      final anprEnabled = await SettingsService().getEnableAnpr();
+      if (anprEnabled) {
+        await LoggerService().log(
+          "ANPR is enabled: Initiating Dahua ANPR stream capture...",
+        );
+        anprResult = await AnprService().captureAnpr(
+          cameraConfig: anprCameraConfig,
+        );
+        await LoggerService().log(
+          "ANPR session complete. Success: ${anprResult.success}, Plate: ${anprResult.plateNumber}",
+        );
+      }
+    } catch (e, stack) {
+      await LoggerService().log("ANPR capture flow exception (non-critical)", e, stack);
+    }
+
     try {
       if (uploadOnCapture) {
         if (autoUpload) {
@@ -156,6 +178,9 @@ class CameraCaptureService {
             scaleStockId: scaleStockId,
             recordStage: recordStage,
             moduleType: moduleType,
+            vehicleImagePath: anprResult?.vehicleImagePath,
+            plateImagePath: anprResult?.plateImagePath,
+            anprResponse: anprResult?.anprResponse,
           );
         } else {
           await showUploadDialog(
@@ -170,6 +195,10 @@ class CameraCaptureService {
             scaleStockId: scaleStockId,
             recordStage: recordStage,
             moduleType: moduleType,
+            vehicleImagePath: anprResult?.vehicleImagePath,
+            plateImagePath: anprResult?.plateImagePath,
+            anprResponse: anprResult?.anprResponse,
+            anprPlateNumber: anprResult?.plateNumber,
           );
         }
       } else {
