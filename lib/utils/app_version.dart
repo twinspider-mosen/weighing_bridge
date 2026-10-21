@@ -1,7 +1,7 @@
 /// Application version configuration.
 /// Auto-updated during build execution.
 class AppVersion {
-  static const String version = '26.10.20.1';
+  static const String version = '26.10.21.1';
   static const int buildNumber = 1;
 
   static String get fullVersion => 'v$version';

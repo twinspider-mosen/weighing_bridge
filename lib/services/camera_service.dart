@@ -5,7 +5,6 @@ import 'package:spider_weighbridge/components/live_camera_player.dart';
 import 'package:spider_weighbridge/components/upload_dialog.dart';
 import 'package:spider_weighbridge/services/anpr_service.dart';
 import 'package:spider_weighbridge/services/logger_service.dart';
-import 'package:spider_weighbridge/services/ocr_service.dart';
 import 'package:spider_weighbridge/services/upload_service.dart';
 
 class CameraConfig {
@@ -140,63 +139,120 @@ class CameraCaptureService {
 
     required Function(bool loading) onLoadingChanged,
   }) async {
-    String? frontPath;
-    String? backPath;
-
-    if (frontCameraKey != null) {
-      try {
-        frontPath = await frontCameraKey.currentState?.captureSnapshot();
-      } catch (e) {
-        await LoggerService().log("Front camera capture failed (non-critical)", e);
-      }
-    }
-
-    if (backCameraKey != null) {
-      try {
-        backPath = await backCameraKey.currentState?.captureSnapshot();
-      } catch (e) {
-        await LoggerService().log("Back camera capture failed (non-critical)", e);
-      }
-    }
-
     if (!context.mounted) return;
     onLoadingChanged(true);
 
-    // ── Per-camera ANPR ────────────────────────────────────────────────────────
-    // Run ANPR independently for front and back cameras when their flag is set.
+    String? frontPath;
+    String? backPath;
     String? frontPlateImagePath;
     String? frontPlateText;
     String? backPlateImagePath;
     String? backPlateText;
 
-    if (frontCameraConfig?.enableAnpr == true) {
-      try {
-        await LoggerService().log("Front ANPR: starting capture from ${frontCameraConfig!.ipAddress}");
-        final result = await AnprService().captureAnpr(cameraConfig: frontCameraConfig);
-        await LoggerService().log("Front ANPR: success=${result.success}, plate=${result.plateNumber}");
-        if (result.success) {
-          frontPlateImagePath = result.plateImagePath;
-          frontPlateText = result.plateNumber;
+    // ── Parallel Front & Back Camera Capture ──────────────────────────────────
+    Future<void> captureFront() async {
+      if (frontCameraConfig?.enableAnpr == true) {
+        try {
+          await LoggerService().log(
+            "Front ANPR: starting native capture from ${frontCameraConfig!.ipAddress}",
+          );
+          final result = await AnprService().captureAnpr(
+            cameraConfig: frontCameraConfig,
+          );
+          await LoggerService().log(
+            "Front ANPR result: success=${result.success}, plate=${result.plateNumber}",
+          );
+          if (result.success) {
+            frontPath = result.vehicleImagePath;
+            frontPlateImagePath = result.plateImagePath;
+            frontPlateText = result.plateNumber;
+          }
+        } catch (e, stack) {
+          await LoggerService().log(
+            "Front ANPR exception (non-critical)",
+            e,
+            stack,
+          );
         }
-      } catch (e, stack) {
-        await LoggerService().log("Front ANPR exception (non-critical)", e, stack);
+
+        // If ANPR didn't capture full vehicle image, capture directly via camera HTTP snapshot API
+        if (frontPath == null) {
+          try {
+            frontPath = await AnprService().captureNativeSnapshot(
+              cameraConfig: frontCameraConfig!,
+            );
+          } catch (_) {}
+        }
+        // Fallback to video player snapshot if HTTP snapshot was unavailable
+        if (frontPath == null && frontCameraKey != null) {
+          try {
+            frontPath = await frontCameraKey.currentState?.captureSnapshot();
+          } catch (_) {}
+        }
+      } else if (frontCameraKey != null) {
+        try {
+          frontPath = await frontCameraKey.currentState?.captureSnapshot();
+        } catch (e) {
+          await LoggerService().log(
+            "Front camera capture failed (non-critical)",
+            e,
+          );
+        }
       }
     }
 
-    if (backCameraConfig?.enableAnpr == true) {
-      try {
-        await LoggerService().log("Back ANPR: starting capture from ${backCameraConfig!.ipAddress}");
-        final result = await AnprService().captureAnpr(cameraConfig: backCameraConfig);
-        await LoggerService().log("Back ANPR: success=${result.success}, plate=${result.plateNumber}");
-        if (result.success) {
-          backPlateImagePath = result.plateImagePath;
-          backPlateText = result.plateNumber;
+    Future<void> captureBack() async {
+      if (backCameraConfig?.enableAnpr == true) {
+        try {
+          await LoggerService().log(
+            "Back ANPR: starting native capture from ${backCameraConfig!.ipAddress}",
+          );
+          final result = await AnprService().captureAnpr(
+            cameraConfig: backCameraConfig,
+          );
+          await LoggerService().log(
+            "Back ANPR result: success=${result.success}, plate=${result.plateNumber}",
+          );
+          if (result.success) {
+            backPath = result.vehicleImagePath;
+            backPlateImagePath = result.plateImagePath;
+            backPlateText = result.plateNumber;
+          }
+        } catch (e, stack) {
+          await LoggerService().log(
+            "Back ANPR exception (non-critical)",
+            e,
+            stack,
+          );
         }
-      } catch (e, stack) {
-        await LoggerService().log("Back ANPR exception (non-critical)", e, stack);
+
+        // If ANPR didn't capture full vehicle image, capture directly via camera HTTP snapshot API
+        if (backPath == null) {
+          try {
+            backPath = await AnprService().captureNativeSnapshot(
+              cameraConfig: backCameraConfig!,
+            );
+          } catch (_) {}
+        }
+        // Fallback to video player snapshot if HTTP snapshot was unavailable
+        if (backPath == null && backCameraKey != null) {
+          try {
+            backPath = await backCameraKey.currentState?.captureSnapshot();
+          } catch (_) {}
+        }
+      } else if (backCameraKey != null) {
+        try {
+          backPath = await backCameraKey.currentState?.captureSnapshot();
+        } catch (e) {
+          await LoggerService().log(
+            "Back camera capture failed (non-critical)",
+            e,
+          );
+        }
       }
     }
-    // ──────────────────────────────────────────────────────────────────────────
+
+    await Future.wait([captureFront(), captureBack()]);
 
     try {
       if (uploadOnCapture) {
@@ -237,11 +293,24 @@ class CameraCaptureService {
           );
         }
       } else {
+        if (!context.mounted) return;
         if (frontPath != null) {
-          await _handleDirectSave(context: context, path: frontPath, label: "Front snapshot");
+          await _handleDirectSave(
+            context: context,
+            path: frontPath!,
+            plateImagePath: frontPlateImagePath,
+            plateText: frontPlateText,
+            label: "Front snapshot",
+          );
         }
         if (backPath != null && context.mounted) {
-          await _handleDirectSave(context: context, path: backPath, label: "Back snapshot");
+          await _handleDirectSave(
+            context: context,
+            path: backPath!,
+            plateImagePath: backPlateImagePath,
+            plateText: backPlateText,
+            label: "Back snapshot",
+          );
         }
       }
     } finally {
@@ -252,41 +321,32 @@ class CameraCaptureService {
   static Future<void> _handleDirectSave({
     required BuildContext context,
     required String path,
+    String? plateImagePath,
+    String? plateText,
     String label = 'Snapshot',
   }) async {
-    OcrResult? res;
-    String? err;
-
-    if (OcrService().isConnected) {
-      try {
-        res = await OcrService().scanImage(path);
-
-        await LoggerService().log(
-          "Direct Capture OCR complete. Plate: ${res.labeledTexts["Car Number Plate"]}",
-        );
-      } catch (e) {
-        err = e
-            .toString()
-            .replaceFirst("Exception: ", "")
-            .replaceFirst("StateError: ", "");
-
-        await LoggerService().log("Direct Capture OCR failed", e);
-      }
-    }
+    await LoggerService().log(
+      "$label direct save: image=$path, plateCrop=$plateImagePath, plateText=$plateText",
+    );
 
     if (!context.mounted) return;
 
-    final isPlate = res?.labeledTexts.containsKey("Car Number Plate") ?? false;
+    final String plateInfo = (plateText != null && plateText.isNotEmpty)
+        ? "\nCamera ANPR Plate: $plateText"
+        : "";
+    final String plateCropInfo =
+        (plateImagePath != null && plateImagePath.isNotEmpty)
+        ? "\nPlate Crop: $plateImagePath"
+        : "";
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         backgroundColor: Colors.green.shade800,
         content: Text(
-          "$label saved to disk:\n$path"
-          "${res != null ? "\nAUTOMATIC OCR: ${isPlate ? "Recognized Plate: ${res.labeledTexts["Car Number Plate"]}" : "Scanned Text Detected"}" : ""}"
-          "${err != null ? "\nOCR Scan Failed: $err" : ""}",
+          "$label saved to disk:\n$path$plateInfo$plateCropInfo",
           style: const TextStyle(color: Colors.white),
         ),
+        duration: const Duration(seconds: 4),
       ),
     );
   }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:spider_weighbridge/components/live_camera_player.dart';
 import 'package:spider_weighbridge/model/command_model.dart';
+import 'package:spider_weighbridge/services/anpr_service.dart';
 import 'package:spider_weighbridge/services/camera_service.dart';
 import 'package:spider_weighbridge/services/firebase_service.dart';
 import 'package:spider_weighbridge/services/logger_service.dart';
@@ -28,8 +29,10 @@ class _WeighingScreenState extends State<WeighingScreen> {
   final WeighingScreenController _controller = WeighingScreenController();
   final WeighingCommandService _commandService = WeighingCommandService();
 
-  final GlobalKey<LiveCameraPlayerState> _frontCameraKey = GlobalKey<LiveCameraPlayerState>();
-  final GlobalKey<LiveCameraPlayerState> _backCameraKey = GlobalKey<LiveCameraPlayerState>();
+  final GlobalKey<LiveCameraPlayerState> _frontCameraKey =
+      GlobalKey<LiveCameraPlayerState>();
+  final GlobalKey<LiveCameraPlayerState> _backCameraKey =
+      GlobalKey<LiveCameraPlayerState>();
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   @override
@@ -44,13 +47,18 @@ class _WeighingScreenState extends State<WeighingScreen> {
     });
 
     _commandService.initCommandListener(
-      contextProvider: () => context, isMounted: () => mounted,
+      contextProvider: () => context,
+      isMounted: () => mounted,
       onLoadingChanged: (l) => setState(() => _controller.isCapturingSnap = l),
-      frontKeyProvider: () => _frontCameraKey, backKeyProvider: () => _backCameraKey,
-      requestApproval: (cmd) => WeighingDialogs.showApprovalDialog(context, cmd),
-      currentWeightProvider: () => _controller.currentWeight, unitProvider: () => _controller.unit,
+      frontKeyProvider: () => _frontCameraKey,
+      backKeyProvider: () => _backCameraKey,
+      requestApproval: (cmd) =>
+          WeighingDialogs.showApprovalDialog(context, cmd),
+      currentWeightProvider: () => _controller.currentWeight,
+      unitProvider: () => _controller.unit,
       uploadOnCaptureProvider: () => _controller.uploadOnCapture,
-      enableFrontProvider: () => _controller.enableFrontCamera, enableBackProvider: () => _controller.enableBackCamera,
+      enableFrontProvider: () => _controller.enableFrontCamera,
+      enableBackProvider: () => _controller.enableBackCamera,
       frontCameraProvider: () => _controller.frontCamera,
       backCameraProvider: () => _controller.backCamera,
     );
@@ -79,13 +87,18 @@ class _WeighingScreenState extends State<WeighingScreen> {
             if (newUserId != null && newUserId != _controller.activeUser!.id) {
               await SessionService.switchActiveUser(newUserId);
               if (!context.mounted) return;
-              Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const WeighingScreen()));
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (context) => const WeighingScreen()),
+              );
             }
           },
         ),
         drawer: WeighingDrawer(
-          onCamerasUpdated: () => _controller.loadSavedCameras(() => setState(() {})),
-          onSettingsUpdated: () => _controller.loadSettings(() => setState(() {})),
+          onCamerasUpdated: () =>
+              _controller.loadSavedCameras(() => setState(() {})),
+          onSettingsUpdated: () =>
+              _controller.loadSettings(() => setState(() {})),
         ),
         body: FutureBuilder(
           future: HelperFunctions.getSystemDetails(),
@@ -97,11 +110,29 @@ class _WeighingScreenState extends State<WeighingScreen> {
                 subdomains: snap.data!['subdomains'] ?? [],
               ),
               builder: (context, snapshot) {
-                if (snapshot.hasError) LoggerService().log('Stream error: ${snapshot.error}');
+                if (snapshot.hasError)
+                  LoggerService().log('Stream error: ${snapshot.error}');
                 final commands = snapshot.data != null
-                    ? List<CommandModel>.from(snapshot.data!.docs.map((doc) => CommandModel.fromMap(doc.data() as Map<String, dynamic>)))
+                    ? List<CommandModel>.from(
+                        snapshot.data!.docs.map(
+                          (doc) => CommandModel.fromMap(
+                            doc.data() as Map<String, dynamic>,
+                          ),
+                        ),
+                      )
                     : <CommandModel>[];
-                final command = commands.isNotEmpty ? commands.first : CommandModel.dummy();
+                // Sort oldest first in Dart memory to eliminate Firestore index requirement
+                commands.sort((a, b) {
+                  final aTime = a.createdAt;
+                  final bTime = b.createdAt;
+                  if (aTime == null && bTime == null) return 0;
+                  if (aTime == null) return 1;
+                  if (bTime == null) return -1;
+                  return aTime.compareTo(bTime);
+                });
+                final command = commands.isNotEmpty
+                    ? commands.first
+                    : CommandModel.dummy();
 
                 return Container(
                   decoration: const BoxDecoration(
@@ -124,7 +155,8 @@ class _WeighingScreenState extends State<WeighingScreen> {
                                 WeighingStatusHeader(
                                   isListening: _controller.isListening,
                                   status: _controller.status,
-                                  requireApproval: _controller.requireApprovalForRecords,
+                                  requireApproval:
+                                      _controller.requireApprovalForRecords,
                                 ),
                                 SizedBox(height: layout.gap),
                                 WeighingDesktopView(
@@ -135,15 +167,58 @@ class _WeighingScreenState extends State<WeighingScreen> {
                                   onManageCameras: _manageCameras,
                                   frontCameraKey: _frontCameraKey,
                                   backCameraKey: _backCameraKey,
-                                  onFrontRefreshStream: () => _frontCameraKey.currentState?.refreshStream(),
-                                  onFrontZoomIn: () { _frontCameraKey.currentState?.zoomIn(); setState(() => _controller.frontCameraZoom = _frontCameraKey.currentState?.zoom ?? 1.0); },
-                                  onFrontZoomOut: () { _frontCameraKey.currentState?.zoomOut(); setState(() => _controller.frontCameraZoom = _frontCameraKey.currentState?.zoom ?? 1.0); },
-                                  onFrontResetZoom: () { _frontCameraKey.currentState?.resetZoom(); setState(() => _controller.frontCameraZoom = 1.0); },
-                                  onBackRefreshStream: () => _backCameraKey.currentState?.refreshStream(),
-                                  onBackZoomIn: () { _backCameraKey.currentState?.zoomIn(); setState(() => _controller.backCameraZoom = _backCameraKey.currentState?.zoom ?? 1.0); },
-                                  onBackZoomOut: () { _backCameraKey.currentState?.zoomOut(); setState(() => _controller.backCameraZoom = _backCameraKey.currentState?.zoom ?? 1.0); },
-                                  onBackResetZoom: () { _backCameraKey.currentState?.resetZoom(); setState(() => _controller.backCameraZoom = 1.0); },
+                                  onFrontRefreshStream: () => _frontCameraKey
+                                      .currentState
+                                      ?.refreshStream(),
+                                  onFrontZoomIn: () {
+                                    _frontCameraKey.currentState?.zoomIn();
+                                    setState(
+                                      () => _controller.frontCameraZoom =
+                                          _frontCameraKey.currentState?.zoom ??
+                                          1.0,
+                                    );
+                                  },
+                                  onFrontZoomOut: () {
+                                    _frontCameraKey.currentState?.zoomOut();
+                                    setState(
+                                      () => _controller.frontCameraZoom =
+                                          _frontCameraKey.currentState?.zoom ??
+                                          1.0,
+                                    );
+                                  },
+                                  onFrontResetZoom: () {
+                                    _frontCameraKey.currentState?.resetZoom();
+                                    setState(
+                                      () => _controller.frontCameraZoom = 1.0,
+                                    );
+                                  },
+                                  onBackRefreshStream: () => _backCameraKey
+                                      .currentState
+                                      ?.refreshStream(),
+                                  onBackZoomIn: () {
+                                    _backCameraKey.currentState?.zoomIn();
+                                    setState(
+                                      () => _controller.backCameraZoom =
+                                          _backCameraKey.currentState?.zoom ??
+                                          1.0,
+                                    );
+                                  },
+                                  onBackZoomOut: () {
+                                    _backCameraKey.currentState?.zoomOut();
+                                    setState(
+                                      () => _controller.backCameraZoom =
+                                          _backCameraKey.currentState?.zoom ??
+                                          1.0,
+                                    );
+                                  },
+                                  onBackResetZoom: () {
+                                    _backCameraKey.currentState?.resetZoom();
+                                    setState(
+                                      () => _controller.backCameraZoom = 1.0,
+                                    );
+                                  },
                                   onCaptureSnap: () => _captureSnap(command),
+                                  onTriggerManualSnap: _triggerManualSnap,
                                 ),
                               ],
                             ),
@@ -161,11 +236,52 @@ class _WeighingScreenState extends State<WeighingScreen> {
     );
   }
 
+  void _triggerManualSnap(CameraConfig camera) async {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          "Sending native trigger to ${camera.name} (${camera.ipAddress})...",
+        ),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+    try {
+      final success = await AnprService().triggerManualSnap(
+        cameraConfig: camera,
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              success
+                  ? "Native trigger sent to ${camera.name}!"
+                  : "Trigger command sent to ${camera.name}",
+            ),
+            backgroundColor: success ? Colors.green.shade800 : Colors.blueGrey,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Failed to trigger snap: $e"),
+            backgroundColor: Colors.red.shade800,
+          ),
+        );
+      }
+    }
+  }
+
   void _captureSnap(CommandModel command) {
     CameraCaptureService.captureAndHandle(
       context: context,
       frontCameraKey: _controller.enableFrontCamera ? _frontCameraKey : null,
-      backCameraKey: (_controller.enableBackCamera && _controller.backCamera != null) ? _backCameraKey : null,
+      backCameraKey:
+          (_controller.enableBackCamera && _controller.backCamera != null)
+          ? _backCameraKey
+          : null,
       frontCameraConfig: _controller.frontCamera,
       backCameraConfig: _controller.backCamera,
       uploadOnCapture: _controller.uploadOnCapture,
@@ -178,13 +294,16 @@ class _WeighingScreenState extends State<WeighingScreen> {
       recordType: command.recordType,
       recordStage: command.recordStage,
       moduleType: command.moduleType,
-      onLoadingChanged: (loading) => setState(() => _controller.isCapturingSnap = loading),
+      onLoadingChanged: (loading) =>
+          setState(() => _controller.isCapturingSnap = loading),
     );
   }
 
   Future<void> _manageCameras() async {
-    await Navigator.push(context, MaterialPageRoute(builder: (context) => const CameraManagementScreen()));
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const CameraManagementScreen()),
+    );
     _controller.loadSavedCameras(() => setState(() {}));
   }
-
 }

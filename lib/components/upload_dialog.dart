@@ -112,7 +112,9 @@ class _UploadDialogState extends State<UploadDialog> {
     // Dynamically initialize selectedDomain to the first available option in the domain list.
     // This safely avoids Flutter DropdownButton AssertionErrors when modifying list items.
 
-    if (OcrService().isConnected) {
+    final hasNativePlate = (widget.frontPlateText != null && widget.frontPlateText!.isNotEmpty) ||
+        (widget.backPlateText != null && widget.backPlateText!.isNotEmpty);
+    if (!hasNativePlate && OcrService().isConnected) {
       _runBackgroundOcr();
     }
   }
@@ -398,6 +400,92 @@ class _UploadDialogState extends State<UploadDialog> {
                       ),
                   ],
                 ),
+
+                // Cropped Number Plate thumbnails (if ANPR captured them)
+                if (widget.frontPlateImagePath != null ||
+                    widget.backPlateImagePath != null) ...[
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      if (widget.frontPlateImagePath != null)
+                        Expanded(
+                          child: _buildImagePreview(
+                            path: widget.frontPlateImagePath!,
+                            label: 'FRONT PLATE',
+                          ),
+                        ),
+                      if (widget.frontPlateImagePath != null &&
+                          widget.backPlateImagePath != null)
+                        const SizedBox(width: 8),
+                      if (widget.backPlateImagePath != null)
+                        Expanded(
+                          child: _buildImagePreview(
+                            path: widget.backPlateImagePath!,
+                            label: 'BACK PLATE',
+                          ),
+                        ),
+                    ],
+                  ),
+                ],
+
+                // Camera ANPR Extracted Plate Text Banner
+                if ((widget.frontPlateText != null &&
+                        widget.frontPlateText!.isNotEmpty) ||
+                    (widget.backPlateText != null &&
+                        widget.backPlateText!.isNotEmpty)) ...[
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.greenAccent.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: Colors.greenAccent.withValues(alpha: 0.3),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(
+                          Icons.confirmation_number_outlined,
+                          color: Colors.greenAccent,
+                          size: 24,
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                "ANPR CAMERA OCR PLATE TEXT",
+                                style: GoogleFonts.inter(
+                                  color: Colors.greenAccent,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 1,
+                                ),
+                              ),
+                              const SizedBox(height: 3),
+                              Text(
+                                widget.frontPlateText ??
+                                    widget.backPlateText ??
+                                    '',
+                                style: GoogleFonts.robotoMono(
+                                  color: Colors.white,
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 2,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 20),
 
                 // Weight information strip

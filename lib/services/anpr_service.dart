@@ -67,7 +67,7 @@ class DahuaDigestAuth {
           .toString();
 
       header =
-          'Digest username="$username", realm="$realm", nonce="$nonce", uri="$uri", response="$response", qop="auth", nc=$nc, cnonce="$cnonce"';
+          'Digest username="$username", realm="$realm", nonce="$nonce", uri="$uri", response="$response", qop=auth, nc=$nc, cnonce="$cnonce"';
     } else {
       final response = md5.convert(utf8.encode('$ha1:$nonce:$ha2')).toString();
       header =
@@ -108,10 +108,224 @@ class AnprService {
     return null;
   }
 
+  /// Captures a direct native high-resolution snapshot from Dahua/Hikvision camera HTTP API (/cgi-bin/snapshot.cgi).
+  Future<String?> captureNativeSnapshot({
+    required CameraConfig cameraConfig,
+    Directory? outputDirectory,
+  }) async {
+    final ip = resolveCameraIp(cameraConfig);
+    if (ip == null || ip.isEmpty) return null;
+
+    const user = CameraConstants.defaultUsername;
+    const pass = CameraConstants.defaultPassword;
+    const path = "/cgi-bin/snapshot.cgi";
+    final url = Uri.parse("http://$ip$path");
+
+    final outDir = outputDirectory ?? Directory("vehicle_capture");
+    if (!await outDir.exists()) {
+      await outDir.create(recursive: true);
+    }
+
+    final client = HttpClient()
+      ..connectionTimeout = const Duration(seconds: 5)
+      ..badCertificateCallback = (cert, host, port) => true;
+
+    try {
+      var request = await client.openUrl('GET', url);
+      var response = await request.close();
+
+      if (response.statusCode == 401) {
+        final wwwAuth = response.headers.value(HttpHeaders.wwwAuthenticateHeader);
+        if (wwwAuth != null && wwwAuth.toLowerCase().startsWith('digest')) {
+          final authHeader = DahuaDigestAuth.computeAuthorizationHeader(
+            method: 'GET',
+            uri: path,
+            username: user,
+            password: pass,
+            wwwAuthenticateHeader: wwwAuth,
+          );
+          request = await client.openUrl('GET', url);
+          request.headers.set(HttpHeaders.authorizationHeader, authHeader);
+          response = await request.close();
+        }
+      }
+
+      if (response.statusCode == 200) {
+        final bytes = await response.fold<List<int>>([], (buf, data) => buf..addAll(data));
+        if (bytes.isNotEmpty) {
+          final timestamp = DateFormat('yyyyMMdd_HHmmss').format(DateTime.now());
+          final file = File(p.join(outDir.path, "native_${cameraConfig.id}_$timestamp.jpg"));
+          await file.writeAsBytes(bytes);
+          await LoggerService().log("Native snapshot captured from ${cameraConfig.name}: ${file.path}");
+          return file.path;
+        }
+      }
+    } catch (e) {
+      await LoggerService().log("Native snapshot capture failed from ${cameraConfig.name}", e);
+    } finally {
+      client.close(force: true);
+    }
+    return null;
+  }
+
+  /// Sends a manual snapshot trigger command to Dahua/Hikvision camera to force ANPR evaluation on current view.
+  Future<bool> triggerManualSnap({required CameraConfig cameraConfig}) async {
+    final ip = resolveCameraIp(cameraConfig);
+    if (ip == null || ip.isEmpty) return false;
+
+    const user = CameraConstants.defaultUsername;
+    const pass = CameraConstants.defaultPassword;
+
+    final endpoints = [
+      "/cgi-bin/trafficSnap.cgi?action=manSnap&channel=1",
+      "/cgi-bin/trafficSnap.cgi?action=manSnap",
+      "/cgi-bin/trafficSnap.cgi?action=manualSnap",
+      "/cgi-bin/snapManager.cgi?action=manualSnap",
+      "/cgi-bin/snapManager.cgi?action=snapFileProc&channel=1",
+      "/cgi-bin/eventManager.cgi?action=sendEvent&code=TrafficJunction",
+    ];
+
+    final client = HttpClient()
+      ..connectionTimeout = const Duration(seconds: 4)
+      ..badCertificateCallback = (cert, host, port) => true;
+
+    for (final path in endpoints) {
+      try {
+        final url = Uri.parse("http://$ip$path");
+        var request = await client.openUrl('GET', url);
+        var response = await request.close();
+
+        if (response.statusCode == 401) {
+          final wwwAuth = response.headers.value(HttpHeaders.wwwAuthenticateHeader);
+          if (wwwAuth != null && wwwAuth.toLowerCase().startsWith('digest')) {
+            final authHeader = DahuaDigestAuth.computeAuthorizationHeader(
+              method: 'GET',
+              uri: path,
+              username: user,
+              password: pass,
+              wwwAuthenticateHeader: wwwAuth,
+            );
+            request = await client.openUrl('GET', url);
+            request.headers.set(HttpHeaders.authorizationHeader, authHeader);
+            response = await request.close();
+          }
+        }
+        await LoggerService().log("Manual snap trigger to $path: status=${response.statusCode}");
+        if (response.statusCode == 200) {
+          client.close(force: true);
+          return true;
+        }
+      } catch (e) {
+        // try next endpoint
+      }
+    }
+    client.close(force: true);
+    return false;
+  }
+
+  /// Runs the proven Python ANPR script (capture_anpr.py) which handles Dahua Digest auth
+  /// and extracts scene image, cropped plate image, and OCR plate text.
+  Future<AnprResult?> _runPythonAnprCapture({
+    required CameraConfig cameraConfig,
+    required int timeoutSeconds,
+    required Directory outputDirectory,
+  }) async {
+    final ip = resolveCameraIp(cameraConfig);
+    if (ip == null || ip.isEmpty) return null;
+
+    final pythonScript = File("lib/capture_anpr.py");
+    if (!await pythonScript.exists()) {
+      await LoggerService().log("Python ANPR script not found at ${pythonScript.path}");
+      return null;
+    }
+
+    try {
+      await LoggerService().log("Starting Python ANPR capture process for $ip (timeout: ${timeoutSeconds}s)...");
+      final process = await Process.start(
+        'python',
+        [
+          pythonScript.path,
+          '--ip', ip,
+          '--user', CameraConstants.defaultUsername,
+          '--password', CameraConstants.defaultPassword,
+          '--timeout', timeoutSeconds.toString(),
+          '--output', outputDirectory.path,
+        ],
+        runInShell: true,
+      );
+
+      final completer = Completer<AnprResult?>();
+      final buffer = StringBuffer();
+
+      process.stdout.transform(utf8.decoder).listen((data) {
+        buffer.write(data);
+        const startTag = "__ANPR_JSON_START__";
+        const endTag = "__ANPR_JSON_END__";
+        final fullText = buffer.toString();
+        if (fullText.contains(startTag) && fullText.contains(endTag)) {
+          final startIdx = fullText.indexOf(startTag);
+          final endIdx = fullText.indexOf(endTag);
+          if (startIdx != -1 && endIdx > startIdx) {
+            final jsonStr = fullText.substring(startIdx + startTag.length, endIdx).trim();
+            try {
+              final Map<String, dynamic> parsed = jsonDecode(jsonStr);
+              if (parsed['success'] == true) {
+                if (!completer.isCompleted) {
+                  completer.complete(AnprResult(
+                    success: true,
+                    vehicleImagePath: parsed['vehicle_image'],
+                    plateImagePath: parsed['plate_image'],
+                    plateNumber: parsed['plate_number'],
+                    anprResponse: parsed['anpr_response'] as Map<String, dynamic>?,
+                  ));
+                }
+              } else {
+                if (!completer.isCompleted) {
+                  completer.complete(AnprResult.empty(error: parsed['error']?.toString()));
+                }
+              }
+            } catch (e) {
+              LoggerService().log("Error decoding Python ANPR output JSON: $e");
+            }
+          }
+        }
+      });
+
+      process.stderr.transform(utf8.decoder).listen((err) {
+        LoggerService().log("Python ANPR stderr: $err");
+      });
+
+      process.exitCode.then((code) {
+        if (!completer.isCompleted) {
+          completer.complete(null);
+        }
+      });
+
+      final result = await completer.future.timeout(
+        Duration(seconds: timeoutSeconds + 4),
+        onTimeout: () {
+          process.kill();
+          return null;
+        },
+      );
+
+      if (result != null && result.success) {
+        await LoggerService().log(
+          "Python ANPR capture complete: Plate='${result.plateNumber}', Vehicle='${result.vehicleImagePath}', PlateCrop='${result.plateImagePath}'",
+        );
+        return result;
+      }
+    } catch (e) {
+      await LoggerService().log("Python ANPR execution error, will fallback to Dart stream", e);
+    }
+    return null;
+  }
+
   /// Initiates an ANPR capture session, waiting up to [timeoutSeconds] for a recognized vehicle.
+  /// Also sends a manual snap trigger command to the camera so that stationary vehicles on the scale are evaluated.
   Future<AnprResult> captureAnpr({
     required CameraConfig? cameraConfig,
-    int timeoutSeconds = 15,
+    int timeoutSeconds = 20,
     Directory? outputDirectory,
   }) async {
     final ip = resolveCameraIp(cameraConfig);
@@ -134,6 +348,17 @@ class AnprService {
       "ANPR capture requested: IP=$ip, User=$user, Timeout=${timeoutSeconds}s",
     );
 
+    // Step 1: Try Python ANPR engine first (exact match to capture_anpr.py which user tested)
+    final pyResult = await _runPythonAnprCapture(
+      cameraConfig: cameraConfig!,
+      timeoutSeconds: timeoutSeconds,
+      outputDirectory: outDir,
+    );
+    if (pyResult != null && pyResult.success) {
+      return pyResult;
+    }
+
+    // Step 2: Fallback to native pure-Dart ANPR stream engine
     final streamPath =
         "/cgi-bin/snapManager.cgi?action=attachFileProc&Flags[0]=Event&Events=[TrafficJunction]&heartbeat=5";
     final streamUrl = Uri.parse("http://$ip$streamPath");
@@ -211,6 +436,9 @@ class AnprService {
         finish(AnprResult.empty(error: "ANPR timeout: No recognized vehicle detected"));
       });
 
+      // Send manual snap trigger to camera as soon as listener is connected!
+      unawaited(triggerManualSnap(cameraConfig: cameraConfig!));
+
       subscription = response.listen(
         (chunk) {
           if (DateTime.now().isAfter(deadline)) {
@@ -221,36 +449,27 @@ class AnprService {
 
           streamBuffer.addAll(chunk);
 
-          // Process parts delimited by boundary
+          // Content-Length based multipart parser (exact equivalent of Python read_parts)
           while (true) {
             final boundaryIndex = _findSublist(streamBuffer, boundaryBytes);
             if (boundaryIndex == -1) break;
 
-            final partBytes = streamBuffer.sublist(0, boundaryIndex);
-            // Remove processed part plus boundary length
-            streamBuffer.removeRange(0, boundaryIndex + boundaryBytes.length);
+            final headerStart = boundaryIndex + boundaryBytes.length;
+            if (streamBuffer.length <= headerStart) break;
 
-            // Skip leading whitespace / newlines after boundary
-            while (streamBuffer.isNotEmpty &&
-                (streamBuffer[0] == 0x0D || streamBuffer[0] == 0x0A)) {
-              streamBuffer.removeAt(0);
-            }
+            final headerSub = streamBuffer.sublist(headerStart);
+            final crlfIdx = _findSublist(headerSub, [0x0D, 0x0A, 0x0D, 0x0A]);
+            final lfIdx = _findSublist(headerSub, [0x0A, 0x0A]);
 
-            if (partBytes.isEmpty) continue;
+            if (crlfIdx == -1 && lfIdx == -1) break;
 
-            // Separate headers from body (separated by \r\n\r\n or \n\n)
-            final headerSeparator = _findSublist(partBytes, [0x0D, 0x0A, 0x0D, 0x0A]);
-            final sepLen = (headerSeparator != -1) ? 4 : 2;
-            final actualHeaderSep = (headerSeparator != -1)
-                ? headerSeparator
-                : _findSublist(partBytes, [0x0A, 0x0A]);
+            final bool isCrlf = (crlfIdx != -1 && (lfIdx == -1 || crlfIdx <= lfIdx));
+            final relSep = isCrlf ? crlfIdx : lfIdx;
+            final sepLen = isCrlf ? 4 : 2;
+            final sepIdx = headerStart + relSep;
 
-            if (actualHeaderSep == -1) continue;
-
-            final headerData = partBytes.sublist(0, actualHeaderSep);
-            final bodyData = partBytes.sublist(actualHeaderSep + sepLen);
-
-            final headerText = latin1.decode(headerData, allowInvalid: true);
+            final headerBytes = streamBuffer.sublist(headerStart, sepIdx);
+            final headerText = latin1.decode(headerBytes, allowInvalid: true);
             final partHeaders = <String, String>{};
             for (final line in LineSplitter.split(headerText)) {
               final colon = line.indexOf(':');
@@ -260,13 +479,29 @@ class AnprService {
               }
             }
 
-            // Parse metadata if present
-            final parsedMeta = _parseMetadata(bodyData);
-            if (parsedMeta.isNotEmpty) {
-              currentMetadata.addAll(parsedMeta);
+            final lengthStr = partHeaders['content-length'];
+            final contentLength = (lengthStr != null) ? int.tryParse(lengthStr) : null;
+
+            final bodyStart = sepIdx + sepLen;
+            List<int> bodyData;
+
+            if (contentLength != null) {
+              final bodyEnd = bodyStart + contentLength;
+              if (streamBuffer.length < bodyEnd) {
+                // Whole body not yet arrived — wait for more TCP chunks!
+                break;
+              }
+              bodyData = streamBuffer.sublist(bodyStart, bodyEnd);
+              streamBuffer.removeRange(0, bodyEnd);
+            } else {
+              final nextBoundary = _findSublist(streamBuffer.sublist(bodyStart), boundaryBytes);
+              if (nextBoundary == -1) break;
+              final bodyEnd = bodyStart + nextBoundary;
+              bodyData = streamBuffer.sublist(bodyStart, bodyEnd);
+              streamBuffer.removeRange(0, bodyEnd);
             }
 
-            // Check if body looks like binary JPEG or image content
+            // Check if body looks like binary JPEG
             final partContentType = partHeaders['content-type'] ?? '';
             final bool looksBinary = partContentType.contains('image') ||
                 _findSublist(bodyData, [0xFF, 0xD8]) != -1;
@@ -276,11 +511,19 @@ class AnprService {
               if (recentPayloads.length > 3) {
                 recentPayloads.removeAt(0);
               }
+            } else {
+              // Parse metadata only for text parts
+              final parsedMeta = _parseMetadata(bodyData);
+              if (parsedMeta.isNotEmpty) {
+                currentMetadata.addAll(parsedMeta);
+              }
             }
 
             // Check if we have detected a plate number
-            final plate = (_getField(currentMetadata, "TrafficCar.PlateNumber") ??
+            final plate = (_getField(currentMetadata, "PlateNumber") ??
                     _getField(currentMetadata, "Object.Text") ??
+                    _getField(currentMetadata, "PlateText") ??
+                    _getField(currentMetadata, "Plate") ??
                     '')
                 .trim();
 
@@ -357,7 +600,7 @@ class AnprService {
 
   static String? _getField(Map<String, String> fields, String suffix) {
     for (final entry in fields.entries) {
-      if (entry.key.endsWith(suffix) && entry.value.isNotEmpty) {
+      if (entry.key.toLowerCase().endsWith(suffix.toLowerCase()) && entry.value.isNotEmpty) {
         return entry.value;
       }
     }
@@ -397,8 +640,11 @@ class AnprService {
     required List<int> payload,
     required Directory outputDir,
   }) {
-    final plate = (_getField(fields, "TrafficCar.PlateNumber") ??
+    final plate = (_getField(fields, "PlateNumber") ??
             _getField(fields, "Object.Text") ??
+            _getField(fields, "PlateText") ??
+            _getField(fields, "LicensePlate") ??
+            _getField(fields, "Plate") ??
             '')
         .trim();
 
@@ -407,10 +653,14 @@ class AnprService {
       return null;
     }
 
-    final sceneOffsetStr = _getField(fields, "SceneImage.Offset");
-    final sceneLenStr = _getField(fields, "SceneImage.Length");
-    final plateOffsetStr = _getField(fields, "Object.Image.Offset");
-    final plateLenStr = _getField(fields, "Object.Image.Length");
+    final sceneOffsetStr = _getField(fields, "SceneImage.Offset") ?? _getField(fields, "Scene.Offset");
+    final sceneLenStr = _getField(fields, "SceneImage.Length") ?? _getField(fields, "Scene.Length");
+    final plateOffsetStr = _getField(fields, "Object.Image.Offset") ??
+        _getField(fields, "PlateImage.Offset") ??
+        _getField(fields, "Plate.Offset");
+    final plateLenStr = _getField(fields, "Object.Image.Length") ??
+        _getField(fields, "PlateImage.Length") ??
+        _getField(fields, "Plate.Length");
 
     Uint8List? sceneJpeg;
     Uint8List? plateJpeg;

@@ -36,6 +36,7 @@ class CameraFeedPanel extends StatelessWidget {
   final bool enableFront;
   final bool enableBack;
   final CameraAspectRatio aspectRatio;
+  final ValueChanged<CameraConfig>? onTriggerManualSnap;
 
   const CameraFeedPanel({
     super.key,
@@ -63,6 +64,7 @@ class CameraFeedPanel extends StatelessWidget {
     required this.enableFront,
     required this.enableBack,
     this.aspectRatio = CameraAspectRatio.ratio4x3,
+    this.onTriggerManualSnap,
   });
 
   @override
@@ -334,6 +336,48 @@ class CameraFeedPanel extends StatelessWidget {
                 onTap: onRefresh,
                 child: const Icon(Icons.refresh, color: Colors.tealAccent, size: 18),
               ),
+              if (onTriggerManualSnap != null) ...[
+                const SizedBox(width: 6),
+                Tooltip(
+                  message: 'Trigger Native Camera Capture',
+                  child: InkWell(
+                    onTap: () => onTriggerManualSnap!(camera),
+                    borderRadius: BorderRadius.circular(6),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 7,
+                        vertical: 3,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.blueAccent.withOpacity(0.18),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(
+                          color: Colors.blueAccent.withOpacity(0.4),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.camera,
+                            size: 12,
+                            color: Colors.blueAccent,
+                          ),
+                          const SizedBox(width: 3),
+                          Text(
+                            "SNAP",
+                            style: GoogleFonts.inter(
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.blueAccent,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ],
           ],
         ),

@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:dio/dio.dart';
 
 class CommandModel {
@@ -14,6 +15,7 @@ class CommandModel {
   final String recordType;
   final String recordStage;
   final String moduleType;
+  final DateTime? createdAt;
 
   final File? frontPlate;
   final String? frontPlateText;
@@ -32,6 +34,7 @@ class CommandModel {
     required this.recordType,
     required this.recordStage,
     required this.moduleType,
+    this.createdAt,
     this.frontPlate,
     this.frontPlateText,
     this.backPlate,
@@ -50,6 +53,7 @@ class CommandModel {
     String? scaleStockId,
     String? recordStage,
     String? moduleType,
+    DateTime? createdAt,
     File? frontPlate,
     String? frontPlateText,
     File? backPlate,
@@ -67,11 +71,21 @@ class CommandModel {
       scaleStockId: scaleStockId ?? this.scaleStockId,
       recordStage: recordStage ?? this.recordStage,
       moduleType: moduleType ?? this.moduleType,
+      createdAt: createdAt ?? this.createdAt,
       frontPlate: frontPlate ?? this.frontPlate,
       frontPlateText: frontPlateText ?? this.frontPlateText,
       backPlate: backPlate ?? this.backPlate,
       backPlateText: backPlateText ?? this.backPlateText,
     );
+  }
+
+  static DateTime? _parseDateTime(dynamic val) {
+    if (val == null) return null;
+    if (val is Timestamp) return val.toDate();
+    if (val is DateTime) return val;
+    if (val is String) return DateTime.tryParse(val);
+    if (val is int) return DateTime.fromMillisecondsSinceEpoch(val);
+    return null;
   }
 
   factory CommandModel.fromMap(Map<String, dynamic> data) {
@@ -89,6 +103,9 @@ class CommandModel {
           : null,
       recordStage: data['record_stage'] ?? '',
       moduleType: data['module_type'] ?? '',
+      createdAt: _parseDateTime(data['created_at']) ??
+          _parseDateTime(data['timestamp']) ??
+          _parseDateTime(data['createdAt']),
       frontPlate: data['front_plate'] != null &&
               data['front_plate'].toString().isNotEmpty
           ? File(data['front_plate'].toString())
@@ -132,6 +149,10 @@ class CommandModel {
       'record_stage': recordStage,
       'module_type': moduleType,
     };
+
+    if (createdAt != null) {
+      map['created_at'] = createdAt!.toIso8601String();
+    }
 
     if (frontPlate != null && frontPlate!.path.isNotEmpty) {
       map['front_plate'] = frontPlate!.path;

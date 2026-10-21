@@ -17,7 +17,6 @@ class FirebaseService {
         .where('scale_name', isEqualTo: scaleName)
         .where('subdomain', whereIn: subdomains)
         .where('status', isEqualTo: 'pending')
-        .orderBy('created_at', descending: false) // oldest first (FIFO)
         .snapshots();
   }
 }

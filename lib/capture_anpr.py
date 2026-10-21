@@ -225,7 +225,29 @@ def main():
     with session.get(info_url, timeout=10) as response:
         response.raise_for_status()
 
-    print(f"Authenticated. Waiting up to {wait_seconds}s for one recognized vehicle...")
+    print(f"Authenticated. Waiting up to {wait_seconds}s for recognized vehicle...")
+
+    # Force camera native manual snap in background to evaluate stationary vehicle on scale
+    import threading
+    def trigger_snap():
+        time.sleep(0.5)
+        snap_paths = [
+            "/cgi-bin/trafficSnap.cgi?action=manSnap&channel=1",
+            "/cgi-bin/trafficSnap.cgi?action=manSnap",
+            "/cgi-bin/trafficSnap.cgi?action=manualSnap",
+            "/cgi-bin/snapManager.cgi?action=manualSnap",
+            "/cgi-bin/snapManager.cgi?action=snapFileProc&channel=1",
+        ]
+        for sp in snap_paths:
+            try:
+                res = session.get(f"http://{camera_ip}{sp}", timeout=4)
+                print(f"Triggered native snap via {sp} (status: {res.status_code})")
+                if res.status_code == 200:
+                    break
+            except Exception as ex:
+                print(f"Manual snap error {sp}: {ex}")
+
+    threading.Thread(target=trigger_snap, daemon=True).start()
 
     deadline = time.monotonic() + wait_seconds
     metadata = {}
@@ -244,11 +266,6 @@ def main():
                 break
 
             content_type = headers.get("content-type", "").lower()
-            parsed = parse_metadata(body)
-
-            if parsed:
-                metadata.update(parsed)
-
             looks_binary = (
                 "image" in content_type
                 or b"\xff\xd8" in body
@@ -257,6 +274,10 @@ def main():
             if looks_binary:
                 recent_payloads.append(body)
                 recent_payloads = recent_payloads[-3:]
+            else:
+                parsed = parse_metadata(body)
+                if parsed:
+                    metadata.update(parsed)
 
             if not (
                 field(metadata, "TrafficCar.PlateNumber")

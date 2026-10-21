@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:spider_weighbridge/components/live_camera_player.dart';
 import 'package:spider_weighbridge/model/command_model.dart';
+import 'package:spider_weighbridge/services/camera_service.dart';
 import 'package:spider_weighbridge/views/weighing/camera_feed_panel.dart';
 import 'package:spider_weighbridge/views/weighing/weighing_control_panel.dart';
 import 'package:spider_weighbridge/views/weighing/weighing_layout_helper.dart';
@@ -26,6 +27,7 @@ class WeighingDesktopView extends StatelessWidget {
   final VoidCallback onBackZoomOut;
   final VoidCallback onBackResetZoom;
   final VoidCallback onCaptureSnap;
+  final ValueChanged<CameraConfig>? onTriggerManualSnap;
 
   const WeighingDesktopView({
     super.key,
@@ -45,6 +47,7 @@ class WeighingDesktopView extends StatelessWidget {
     required this.onBackZoomOut,
     required this.onBackResetZoom,
     required this.onCaptureSnap,
+    this.onTriggerManualSnap,
   });
 
   @override
@@ -57,9 +60,7 @@ class WeighingDesktopView extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         // V2 (wide) vs V1 (narrow) weighing section
-        isWide
-            ? _buildWeighingColumnV2(layout)
-            : _buildWeighingColumn(layout),
+        isWide ? _buildWeighingColumnV2(layout) : _buildWeighingColumn(layout),
         if (showCameraPanel) ...[
           SizedBox(height: layout.cardGap),
           _buildCameraColumn(layout, shrinkWrap: true),
@@ -178,6 +179,7 @@ class WeighingDesktopView extends StatelessWidget {
       enableFront: controller.enableFrontCamera,
       enableBack: controller.enableBackCamera,
       aspectRatio: controller.cameraAspectRatio,
+      onTriggerManualSnap: onTriggerManualSnap,
     );
   }
 }
