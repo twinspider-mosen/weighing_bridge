@@ -10,15 +10,12 @@ import requests
 from requests.auth import HTTPDigestAuth
 
 # ============================================================
-# CAMERA CONFIGURATION (DEFAULTS)
+# SCRIPT DEFAULTS (All credentials and IP are strictly supplied
+# dynamically by Flutter from the added camera and CameraConstants)
 # ============================================================
 
-CAMERA_IP = "192.168.0.101"
-USERNAME = "admin"
-PASSWORD = "admin@12345"
-
-WAIT_SECONDS = 120
-OUTPUT_DIR = Path("vehicle_capture")
+DEFAULT_TIMEOUT = 6
+DEFAULT_OUTPUT_DIR = Path("vehicle_capture")
 
 
 
@@ -108,7 +105,7 @@ def field(fields, suffix):
 
 
 
-def save_one(fields, payload, output_dir=OUTPUT_DIR):
+def save_one(fields, payload, output_dir=DEFAULT_OUTPUT_DIR):
     plate = (
         field(fields, "TrafficCar.PlateNumber")
         or field(fields, "Object.Text")
@@ -192,15 +189,25 @@ def save_one(fields, payload, output_dir=OUTPUT_DIR):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Dahua ANPR Capture")
-    parser.add_argument("--ip", default=CAMERA_IP, help="Camera IP address")
-    parser.add_argument("--user", default=USERNAME, help="Camera username")
-    parser.add_argument("--password", default=PASSWORD, help="Camera password")
-    parser.add_argument("--timeout", type=int, default=WAIT_SECONDS, help="Timeout in seconds")
-    parser.add_argument("--output", default=str(OUTPUT_DIR), help="Output directory")
+    parser = argparse.ArgumentParser(description="Dahua ANPR Capture for Weighbridge")
+    parser.add_argument("--ip", required=True, help="Camera IP address (configured in app)")
+    parser.add_argument("--user", required=True, help="Camera username (from CameraConstants)")
+    parser.add_argument("--password", required=True, help="Camera password (from CameraConstants)")
+    parser.add_argument("--timeout", type=int, default=DEFAULT_TIMEOUT, help="Timeout in seconds")
+    parser.add_argument("--output", default=str(DEFAULT_OUTPUT_DIR), help="Output directory")
     args, _ = parser.parse_known_args()
 
-    camera_ip = args.ip
+    camera_ip = (args.ip or "").strip()
+    if not camera_ip:
+        print("Error: Camera IP is required. Please configure the camera in the app first.")
+        err_dict = {
+            "success": False,
+            "error": "No camera IP provided. An added camera with IP is required.",
+        }
+        print(f"__ANPR_JSON_START__{json.dumps(err_dict)}__ANPR_JSON_END__")
+        sys.stdout.flush()
+        sys.exit(1)
+
     username = args.user
     password = args.password
     wait_seconds = args.timeout
@@ -209,7 +216,7 @@ def main():
     stream_url = (
         f"http://{camera_ip}/cgi-bin/"
         "snapManager.cgi?action=attachFileProc"
-        "&Flags[0]=Event&Events=[TrafficJunction]&heartbeat=5"
+        "&Flags[0]=Event&Events=[TrafficJunction,TrafficManualSnap,Traffic]&heartbeat=5"
     )
 
     info_url = (

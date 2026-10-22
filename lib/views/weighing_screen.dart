@@ -1,3 +1,5 @@
+import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:spider_weighbridge/components/live_camera_player.dart';
 import 'package:spider_weighbridge/model/command_model.dart';
@@ -35,15 +37,39 @@ class _WeighingScreenState extends State<WeighingScreen> {
       GlobalKey<LiveCameraPlayerState>();
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
+  StreamSubscription<String>? _weightSubscription;
+  late final Future<Map<String, dynamic>> _systemDetailsFuture;
+  Stream? _cachedCommandStream;
+  String _cachedScaleName = '';
+  List<String> _cachedSubdomains = [];
+
+  Stream _getOrCreateCommandStream(String scaleName, List<String> subdomains) {
+    if (_cachedCommandStream != null &&
+        scaleName == _cachedScaleName &&
+        listEquals(subdomains, _cachedSubdomains)) {
+      return _cachedCommandStream!;
+    }
+    _cachedScaleName = scaleName;
+    _cachedSubdomains = List<String>.from(subdomains);
+    _cachedCommandStream = FirebaseService.getCommandStream(
+      scaleName: scaleName,
+      subdomains: subdomains,
+    );
+    return _cachedCommandStream!;
+  }
+
   @override
   void initState() {
     super.initState();
+    _systemDetailsFuture = HelperFunctions.getSystemDetails();
     _controller.refreshPorts(() {});
     _controller.loadSavedCameras(() {});
     _controller.loadSettings(() {});
     _controller.loadUser(() {});
-    _controller.scaleService.weightStream.listen((data) {
-      _controller.handleNewData(data, () => setState(() {}));
+    _weightSubscription = _controller.scaleService.weightStream.listen((data) {
+      _controller.handleNewData(data, () {
+        if (mounted) setState(() {});
+      });
     });
 
     _commandService.initCommandListener(
@@ -66,6 +92,7 @@ class _WeighingScreenState extends State<WeighingScreen> {
 
   @override
   void dispose() {
+    _weightSubscription?.cancel();
     _commandService.dispose();
     _controller.dispose();
     super.dispose();
@@ -100,15 +127,14 @@ class _WeighingScreenState extends State<WeighingScreen> {
           onSettingsUpdated: () =>
               _controller.loadSettings(() => setState(() {})),
         ),
-        body: FutureBuilder(
-          future: HelperFunctions.getSystemDetails(),
+        body: FutureBuilder<Map<String, dynamic>>(
+          future: _systemDetailsFuture,
           builder: (context, snap) {
             if (!snap.hasData || snap.hasError) return const SizedBox.shrink();
+            final scaleName = snap.data!['scale_name'] ?? '';
+            final subdomains = List<String>.from(snap.data!['subdomains'] ?? []);
             return StreamBuilder(
-              stream: FirebaseService.getCommandStream(
-                scaleName: snap.data!['scale_name'] ?? '',
-                subdomains: snap.data!['subdomains'] ?? [],
-              ),
+              stream: _getOrCreateCommandStream(scaleName, subdomains),
               builder: (context, snapshot) {
                 if (snapshot.hasError)
                   LoggerService().log('Stream error: ${snapshot.error}');
@@ -277,13 +303,15 @@ class _WeighingScreenState extends State<WeighingScreen> {
   void _captureSnap(CommandModel command) {
     CameraCaptureService.captureAndHandle(
       context: context,
+      enableFrontCamera: _controller.enableFrontCamera,
+      enableBackCamera: _controller.enableBackCamera,
       frontCameraKey: _controller.enableFrontCamera ? _frontCameraKey : null,
       backCameraKey:
           (_controller.enableBackCamera && _controller.backCamera != null)
           ? _backCameraKey
           : null,
-      frontCameraConfig: _controller.frontCamera,
-      backCameraConfig: _controller.backCamera,
+      frontCameraConfig: _controller.enableFrontCamera ? _controller.frontCamera : null,
+      backCameraConfig: _controller.enableBackCamera ? _controller.backCamera : null,
       uploadOnCapture: _controller.uploadOnCapture,
       currentWeight: _controller.currentWeight,
       unit: _controller.unit,

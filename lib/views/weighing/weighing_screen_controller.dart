@@ -93,6 +93,8 @@ class WeighingScreenController {
     onUpdate();
   }
 
+  int _lastWeightUpdateMs = 0;
+
   void handleNewData(String data, VoidCallback onUpdate) {
     final trimmed = data.trim();
     if (trimmed.isEmpty) return;
@@ -103,20 +105,37 @@ class WeighingScreenController {
       r'\b(kg|lb|g)\b',
       caseSensitive: false,
     ).firstMatch(trimmed);
+
+    String newWeight = currentWeight;
+    String newUnit = unit;
+
     if (match != null) {
       final raw = match.group(0)!;
       try {
-        currentWeight = raw.contains('.')
+        newWeight = raw.contains('.')
             ? double.parse(raw).toStringAsFixed(2)
             : int.parse(raw).toString();
       } catch (_) {
-        currentWeight = raw;
+        newWeight = raw;
       }
     }
     if (unitMatch != null) {
-      unit = unitMatch.group(0)!.toLowerCase();
+      newUnit = unitMatch.group(0)!.toLowerCase();
     }
-    onUpdate();
+
+    // Guard: Do not trigger expensive UI rebuilds if weight & unit have not changed!
+    final bool valueChanged = (newWeight != currentWeight || newUnit != unit);
+    if (!valueChanged) return;
+
+    currentWeight = newWeight;
+    unit = newUnit;
+
+    // Throttle UI rebuilds to a max rate of 12.5Hz (80ms) to eliminate CPU spikes
+    final now = DateTime.now().millisecondsSinceEpoch;
+    if (now - _lastWeightUpdateMs >= 80) {
+      _lastWeightUpdateMs = now;
+      onUpdate();
+    }
   }
 
   Future<void> startScan(BuildContext context, VoidCallback onUpdate) async {

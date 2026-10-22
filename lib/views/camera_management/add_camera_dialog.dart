@@ -6,8 +6,13 @@ import 'package:spider_weighbridge/utils/constants.dart';
 
 class AddCameraDialog extends StatefulWidget {
   final Function(CameraConfig) onCameraAdded;
+  final CameraConfig? cameraToEdit;
 
-  const AddCameraDialog({super.key, required this.onCameraAdded});
+  const AddCameraDialog({
+    super.key,
+    required this.onCameraAdded,
+    this.cameraToEdit,
+  });
 
   @override
   State<AddCameraDialog> createState() => _AddCameraDialogState();
@@ -20,6 +25,18 @@ class _AddCameraDialogState extends State<AddCameraDialog> {
   bool _enableAnpr = false;
 
   @override
+  void initState() {
+    super.initState();
+    if (widget.cameraToEdit != null) {
+      _nameController.text = widget.cameraToEdit!.name;
+      _ipController.text = widget.cameraToEdit!.ipAddress.isNotEmpty
+          ? widget.cameraToEdit!.ipAddress
+          : widget.cameraToEdit!.rtspUrl;
+      _enableAnpr = widget.cameraToEdit!.enableAnpr;
+    }
+  }
+
+  @override
   void dispose() {
     _nameController.dispose();
     _ipController.dispose();
@@ -28,11 +45,12 @@ class _AddCameraDialogState extends State<AddCameraDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final isEditing = widget.cameraToEdit != null;
     return AlertDialog(
       backgroundColor: const Color(0xFF1A1F25),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       title: Text(
-        'Add IP Camera',
+        isEditing ? 'Edit IP Camera' : 'Add IP Camera',
         style: GoogleFonts.inter(
           fontWeight: FontWeight.bold,
           color: Colors.white,
@@ -143,8 +161,12 @@ class _AddCameraDialogState extends State<AddCameraDialog> {
                 }
               }
 
+              final cameraId =
+                  widget.cameraToEdit?.id ??
+                  DateTime.now().millisecondsSinceEpoch.toString();
+
               final newCamera = CameraConfig(
-                id: DateTime.now().millisecondsSinceEpoch.toString(),
+                id: cameraId,
                 name: name,
                 ipAddress: ipAddress,
                 rtspUrl: rtspUrl,
@@ -161,7 +183,7 @@ class _AddCameraDialogState extends State<AddCameraDialog> {
               borderRadius: BorderRadius.circular(10),
             ),
           ),
-          child: const Text('Add Camera'),
+          child: Text(isEditing ? 'Save Changes' : 'Add Camera'),
         ),
       ],
     );

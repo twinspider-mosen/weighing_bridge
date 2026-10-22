@@ -2,7 +2,6 @@ class CameraConstants {
   static final CameraConstants _instance = CameraConstants._internal();
   factory CameraConstants() => _instance;
   CameraConstants._internal();
-  static const String defaultIp = "192.168.0.101";
   static const String defaultUsername = "admin";
   static const String defaultPassword = "admin@12345";
 

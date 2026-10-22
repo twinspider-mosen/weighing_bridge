@@ -49,6 +49,45 @@ class _CameraManagementScreenState extends State<CameraManagementScreen> {
     );
   }
 
+  void _editCamera(CameraConfig camera) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AddCameraDialog(
+          cameraToEdit: camera,
+          onCameraAdded: (updatedCamera) async {
+            await _storageService.saveCamera(updatedCamera);
+            if (context.mounted) {
+              Navigator.of(context).pop();
+              _loadCameras();
+            }
+          },
+        );
+      },
+    );
+  }
+
+  Future<void> _toggleAnpr(CameraConfig camera) async {
+    final updated = camera.copyWith(enableAnpr: !camera.enableAnpr);
+    await _storageService.saveCamera(updated);
+    _loadCameras();
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            updated.enableAnpr
+                ? 'ANPR enabled for "${updated.name}"'
+                : 'ANPR disabled for "${updated.name}"',
+          ),
+          backgroundColor: updated.enableAnpr
+              ? Colors.green.shade800
+              : Colors.blueGrey,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
   Future<void> _deleteCamera(CameraConfig camera) async {
     final confirm = await showDialog<bool>(
       context: context,
@@ -154,6 +193,8 @@ class _CameraManagementScreenState extends State<CameraManagementScreen> {
                 cameras: _cameras,
                 allStreamsPaused: _allStreamsPaused,
                 onDeleteCamera: _deleteCamera,
+                onEditCamera: _editCamera,
+                onToggleAnpr: _toggleAnpr,
               ),
       ),
       floatingActionButton: FloatingActionButton.extended(

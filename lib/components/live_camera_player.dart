@@ -95,8 +95,37 @@ class LiveCameraPlayerState extends State<LiveCameraPlayer> {
 
   Future<void> _initPlayer() async {
     try {
-      final p = Player();
-      final c = VideoController(p);
+      final p = Player(
+        configuration: const PlayerConfiguration(
+          bufferSize: 1024 * 1024 * 2, // 2MB demuxer cache max (prevents memory climb)
+          pitch: false,
+        ),
+      );
+
+      // Disable audio & subtitles to free decoder threads and buffers
+      await p.setAudioTrack(AudioTrack.no());
+      await p.setSubtitleTrack(SubtitleTrack.no());
+
+      // Native low-latency & bounded-memory libmpv properties for live RTSP
+      if (p.platform is NativePlayer) {
+        final native = p.platform as NativePlayer;
+        await native.setProperty('cache', 'no');
+        await native.setProperty('cache-secs', '0.2');
+        await native.setProperty('demuxer-max-bytes', '${1024 * 1024 * 2}'); // 2MB
+        await native.setProperty('demuxer-max-back-bytes', '0'); // Never hold played frames in RAM!
+        await native.setProperty('packet-buffering', '0');
+        await native.setProperty('profile', 'low-latency');
+        await native.setProperty('framedrop', 'vo'); // Drop stale frames on CPU lag
+        await native.setProperty('hwdec', 'auto'); // GPU hardware decoding (DirectX / D3D11VA)
+        await native.setProperty('rtsp-transport', 'tcp');
+      }
+
+      final c = VideoController(
+        p,
+        configuration: const VideoControllerConfiguration(
+          enableHardwareAcceleration: true,
+        ),
+      );
 
       await p.open(Media(widget.rtspUrl));
 

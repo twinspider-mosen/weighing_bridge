@@ -209,13 +209,13 @@ class ScaleService {
       _reader!.stream.listen(
         (Uint8List data) {
           chunkCount++;
-          if (chunkCount <= 100 || chunkCount % 100 == 0) {
+          if (chunkCount <= 5 || chunkCount % 500 == 0) {
             final asciiCleaned = data.map((b) => b & 0x7F).toList();
             final asciiStr = ascii
                 .decode(asciiCleaned, allowInvalid: true)
                 .replaceAll(RegExp(r'[\x00-\x1F\x7F]'), '.');
             LoggerService().log(
-              'Stream raw data chunk #$chunkCount [${config.protocol.name}]: len=${data.length}, bytes=$data, text="$asciiStr"',
+              'Stream raw data chunk #$chunkCount [${config.protocol.name}]: len=${data.length}, text="$asciiStr"',
             );
           }
 
@@ -445,9 +445,6 @@ class ScaleService {
 
                 final String? parsed = _parseCSVLine(lineText);
                 if (parsed != null) {
-                  LoggerService().log(
-                    'CSV weight parsed: "$parsed" from line: "${lineText.trim()}"',
-                  );
                   _weightController.add(parsed);
                 }
               }

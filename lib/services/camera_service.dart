@@ -122,6 +122,9 @@ class CameraCaptureService {
     /// Full CameraConfig for the back camera (used for ANPR if enableAnpr==true).
     CameraConfig? backCameraConfig,
 
+    bool enableFrontCamera = true,
+    bool enableBackCamera = true,
+
     bool autoUpload = false,
     required bool uploadOnCapture,
 
@@ -151,16 +154,23 @@ class CameraCaptureService {
 
     // ── Parallel Front & Back Camera Capture ──────────────────────────────────
     Future<void> captureFront() async {
-      if (frontCameraConfig?.enableAnpr == true) {
+      if (!enableFrontCamera || frontCameraConfig == null) {
+        await LoggerService().log(
+          "Front camera is disabled in settings (enableFront=$enableFrontCamera, config=${frontCameraConfig?.name ?? 'null'}); skipping capture.",
+        );
+        return;
+      }
+
+      if (frontCameraConfig.enableAnpr == true) {
         try {
           await LoggerService().log(
-            "Front ANPR: starting native capture from ${frontCameraConfig!.ipAddress}",
+            "Front ANPR: starting capture from ${frontCameraConfig.ipAddress} (Camera='${frontCameraConfig.name}')",
           );
           final result = await AnprService().captureAnpr(
             cameraConfig: frontCameraConfig,
           );
           await LoggerService().log(
-            "Front ANPR result: success=${result.success}, plate=${result.plateNumber}",
+            "Front ANPR result: success=${result.success}, plate=${result.plateNumber ?? 'none'}${result.error != null ? ', details=${result.error}' : ''}",
           );
           if (result.success) {
             frontPath = result.vehicleImagePath;
@@ -178,40 +188,65 @@ class CameraCaptureService {
         // If ANPR didn't capture full vehicle image, capture directly via camera HTTP snapshot API
         if (frontPath == null) {
           try {
+            await LoggerService().log("Front ANPR did not yield full vehicle image; attempting native HTTP snapshot fallback...");
             frontPath = await AnprService().captureNativeSnapshot(
-              cameraConfig: frontCameraConfig!,
+              cameraConfig: frontCameraConfig,
             );
-          } catch (_) {}
+            await LoggerService().log("Front native snapshot fallback result: path=$frontPath");
+          } catch (e) {
+            await LoggerService().log("Front native snapshot fallback error: $e");
+          }
         }
         // Fallback to video player snapshot if HTTP snapshot was unavailable
         if (frontPath == null && frontCameraKey != null) {
           try {
+            await LoggerService().log("Front HTTP snapshot unavailable; attempting video player frame snapshot fallback...");
             frontPath = await frontCameraKey.currentState?.captureSnapshot();
-          } catch (_) {}
+            await LoggerService().log("Front video player snapshot result: path=$frontPath");
+          } catch (e) {
+            await LoggerService().log("Front video player snapshot error: $e");
+          }
         }
-      } else if (frontCameraKey != null) {
+      } else {
         try {
-          frontPath = await frontCameraKey.currentState?.captureSnapshot();
-        } catch (e) {
-          await LoggerService().log(
-            "Front camera capture failed (non-critical)",
-            e,
+          await LoggerService().log("Front camera (${frontCameraConfig.name}): ANPR is OFF, capturing native snapshot from ${frontCameraConfig.ipAddress}");
+          frontPath = await AnprService().captureNativeSnapshot(
+            cameraConfig: frontCameraConfig,
           );
+        } catch (e) {
+          await LoggerService().log("Front native snapshot error: $e");
+        }
+        if (frontPath == null && frontCameraKey != null) {
+          try {
+            frontPath = await frontCameraKey.currentState?.captureSnapshot();
+          } catch (e) {
+            await LoggerService().log(
+              "Front camera capture failed (non-critical)",
+              e,
+            );
+          }
         }
       }
     }
 
     Future<void> captureBack() async {
-      if (backCameraConfig?.enableAnpr == true) {
+      if (!enableBackCamera || backCameraConfig == null) {
+        await LoggerService().log(
+          "Back camera is disabled in settings (enableBack=$enableBackCamera, config=${backCameraConfig?.name ?? 'null'}); skipping capture.",
+        );
+        return;
+      }
+
+      if (backCameraConfig.enableAnpr == true) {
         try {
           await LoggerService().log(
-            "Back ANPR: starting native capture from ${backCameraConfig!.ipAddress}",
+            "Back ANPR: starting capture from ${backCameraConfig.ipAddress} (Camera='${backCameraConfig.name}')",
           );
           final result = await AnprService().captureAnpr(
             cameraConfig: backCameraConfig,
           );
           await LoggerService().log(
-            "Back ANPR result: success=${result.success}, plate=${result.plateNumber}",
+            "Back ANPR result: success=${result.success}, plate=${result.plateNumber ?? 'none'}${result.error != null ? ', details=${result.error}' : ''}",
           );
           if (result.success) {
             backPath = result.vehicleImagePath;
@@ -229,30 +264,52 @@ class CameraCaptureService {
         // If ANPR didn't capture full vehicle image, capture directly via camera HTTP snapshot API
         if (backPath == null) {
           try {
+            await LoggerService().log("Back ANPR did not yield full vehicle image; attempting native HTTP snapshot fallback...");
             backPath = await AnprService().captureNativeSnapshot(
-              cameraConfig: backCameraConfig!,
+              cameraConfig: backCameraConfig,
             );
-          } catch (_) {}
+            await LoggerService().log("Back native snapshot fallback result: path=$backPath");
+          } catch (e) {
+            await LoggerService().log("Back native snapshot fallback error: $e");
+          }
         }
         // Fallback to video player snapshot if HTTP snapshot was unavailable
         if (backPath == null && backCameraKey != null) {
           try {
+            await LoggerService().log("Back HTTP snapshot unavailable; attempting video player frame snapshot fallback...");
             backPath = await backCameraKey.currentState?.captureSnapshot();
-          } catch (_) {}
+            await LoggerService().log("Back video player snapshot result: path=$backPath");
+          } catch (e) {
+            await LoggerService().log("Back video player snapshot error: $e");
+          }
         }
-      } else if (backCameraKey != null) {
+      } else {
         try {
-          backPath = await backCameraKey.currentState?.captureSnapshot();
-        } catch (e) {
-          await LoggerService().log(
-            "Back camera capture failed (non-critical)",
-            e,
+          await LoggerService().log("Back camera (${backCameraConfig.name}): ANPR is OFF, capturing native snapshot from ${backCameraConfig.ipAddress}");
+          backPath = await AnprService().captureNativeSnapshot(
+            cameraConfig: backCameraConfig,
           );
+        } catch (e) {
+          await LoggerService().log("Back native snapshot error: $e");
+        }
+        if (backPath == null && backCameraKey != null) {
+          try {
+            backPath = await backCameraKey.currentState?.captureSnapshot();
+          } catch (e) {
+            await LoggerService().log(
+              "Back camera capture failed (non-critical)",
+              e,
+            );
+          }
         }
       }
     }
 
     await Future.wait([captureFront(), captureBack()]);
+
+    await LoggerService().log(
+      "Weighbridge capture summary: Front=[image: $frontPath, plate: $frontPlateText, crop: $frontPlateImagePath] | Back=[image: $backPath, plate: $backPlateText, crop: $backPlateImagePath]",
+    );
 
     try {
       if (uploadOnCapture) {
@@ -260,7 +317,7 @@ class CameraCaptureService {
           await UploadService.uploadSnapshot(
             frontImagePath: frontPath,
             backImagePath: backPath,
-            currentWeight: "$currentWeight",
+            currentWeight: currentWeight.toString(),
             requestID: requestID,
             scaleName: scaleName,
             subdomain: subdomain,
