@@ -124,6 +124,7 @@ class CameraCaptureService {
 
     bool enableFrontCamera = true,
     bool enableBackCamera = true,
+    bool? cameraEnabled,
 
     bool autoUpload = false,
     required bool uploadOnCapture,
@@ -145,6 +146,16 @@ class CameraCaptureService {
     if (!context.mounted) return;
     onLoadingChanged(true);
 
+    final bool isCameraAllowed = cameraEnabled ?? true;
+    final bool effectiveFront = isCameraAllowed && enableFrontCamera;
+    final bool effectiveBack = isCameraAllowed && enableBackCamera;
+
+    if (!isCameraAllowed) {
+      await LoggerService().log(
+        "Camera capture is DISABLED by incoming request ('camera_enabled: false'). Bypassing all cameras.",
+      );
+    }
+
     String? frontPath;
     String? backPath;
     String? frontPlateImagePath;
@@ -154,9 +165,9 @@ class CameraCaptureService {
 
     // ── Parallel Front & Back Camera Capture ──────────────────────────────────
     Future<void> captureFront() async {
-      if (!enableFrontCamera || frontCameraConfig == null) {
+      if (!effectiveFront || frontCameraConfig == null) {
         await LoggerService().log(
-          "Front camera is disabled in settings (enableFront=$enableFrontCamera, config=${frontCameraConfig?.name ?? 'null'}); skipping capture.",
+          "Front camera skipped (requestAllowed=$isCameraAllowed, settingEnabled=$enableFrontCamera, config=${frontCameraConfig?.name ?? 'null'}).",
         );
         return;
       }
@@ -188,28 +199,40 @@ class CameraCaptureService {
         // If ANPR didn't capture full vehicle image, capture directly via camera HTTP snapshot API
         if (frontPath == null) {
           try {
-            await LoggerService().log("Front ANPR did not yield full vehicle image; attempting native HTTP snapshot fallback...");
+            await LoggerService().log(
+              "Front ANPR did not yield full vehicle image; attempting native HTTP snapshot fallback...",
+            );
             frontPath = await AnprService().captureNativeSnapshot(
               cameraConfig: frontCameraConfig,
             );
-            await LoggerService().log("Front native snapshot fallback result: path=$frontPath");
+            await LoggerService().log(
+              "Front native snapshot fallback result: path=$frontPath",
+            );
           } catch (e) {
-            await LoggerService().log("Front native snapshot fallback error: $e");
+            await LoggerService().log(
+              "Front native snapshot fallback error: $e",
+            );
           }
         }
         // Fallback to video player snapshot if HTTP snapshot was unavailable
         if (frontPath == null && frontCameraKey != null) {
           try {
-            await LoggerService().log("Front HTTP snapshot unavailable; attempting video player frame snapshot fallback...");
+            await LoggerService().log(
+              "Front HTTP snapshot unavailable; attempting video player frame snapshot fallback...",
+            );
             frontPath = await frontCameraKey.currentState?.captureSnapshot();
-            await LoggerService().log("Front video player snapshot result: path=$frontPath");
+            await LoggerService().log(
+              "Front video player snapshot result: path=$frontPath",
+            );
           } catch (e) {
             await LoggerService().log("Front video player snapshot error: $e");
           }
         }
       } else {
         try {
-          await LoggerService().log("Front camera (${frontCameraConfig.name}): ANPR is OFF, capturing native snapshot from ${frontCameraConfig.ipAddress}");
+          await LoggerService().log(
+            "Front camera (${frontCameraConfig.name}): ANPR is OFF, capturing native snapshot from ${frontCameraConfig.ipAddress}",
+          );
           frontPath = await AnprService().captureNativeSnapshot(
             cameraConfig: frontCameraConfig,
           );
@@ -230,9 +253,9 @@ class CameraCaptureService {
     }
 
     Future<void> captureBack() async {
-      if (!enableBackCamera || backCameraConfig == null) {
+      if (!effectiveBack || backCameraConfig == null) {
         await LoggerService().log(
-          "Back camera is disabled in settings (enableBack=$enableBackCamera, config=${backCameraConfig?.name ?? 'null'}); skipping capture.",
+          "Back camera skipped (requestAllowed=$isCameraAllowed, settingEnabled=$enableBackCamera, config=${backCameraConfig?.name ?? 'null'}).",
         );
         return;
       }
@@ -264,28 +287,40 @@ class CameraCaptureService {
         // If ANPR didn't capture full vehicle image, capture directly via camera HTTP snapshot API
         if (backPath == null) {
           try {
-            await LoggerService().log("Back ANPR did not yield full vehicle image; attempting native HTTP snapshot fallback...");
+            await LoggerService().log(
+              "Back ANPR did not yield full vehicle image; attempting native HTTP snapshot fallback...",
+            );
             backPath = await AnprService().captureNativeSnapshot(
               cameraConfig: backCameraConfig,
             );
-            await LoggerService().log("Back native snapshot fallback result: path=$backPath");
+            await LoggerService().log(
+              "Back native snapshot fallback result: path=$backPath",
+            );
           } catch (e) {
-            await LoggerService().log("Back native snapshot fallback error: $e");
+            await LoggerService().log(
+              "Back native snapshot fallback error: $e",
+            );
           }
         }
         // Fallback to video player snapshot if HTTP snapshot was unavailable
         if (backPath == null && backCameraKey != null) {
           try {
-            await LoggerService().log("Back HTTP snapshot unavailable; attempting video player frame snapshot fallback...");
+            await LoggerService().log(
+              "Back HTTP snapshot unavailable; attempting video player frame snapshot fallback...",
+            );
             backPath = await backCameraKey.currentState?.captureSnapshot();
-            await LoggerService().log("Back video player snapshot result: path=$backPath");
+            await LoggerService().log(
+              "Back video player snapshot result: path=$backPath",
+            );
           } catch (e) {
             await LoggerService().log("Back video player snapshot error: $e");
           }
         }
       } else {
         try {
-          await LoggerService().log("Back camera (${backCameraConfig.name}): ANPR is OFF, capturing native snapshot from ${backCameraConfig.ipAddress}");
+          await LoggerService().log(
+            "Back camera (${backCameraConfig.name}): ANPR is OFF, capturing native snapshot from ${backCameraConfig.ipAddress}",
+          );
           backPath = await AnprService().captureNativeSnapshot(
             cameraConfig: backCameraConfig,
           );

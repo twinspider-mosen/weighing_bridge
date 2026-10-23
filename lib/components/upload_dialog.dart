@@ -112,7 +112,8 @@ class _UploadDialogState extends State<UploadDialog> {
     // Dynamically initialize selectedDomain to the first available option in the domain list.
     // This safely avoids Flutter DropdownButton AssertionErrors when modifying list items.
 
-    final hasNativePlate = (widget.frontPlateText != null && widget.frontPlateText!.isNotEmpty) ||
+    final hasNativePlate =
+        (widget.frontPlateText != null && widget.frontPlateText!.isNotEmpty) ||
         (widget.backPlateText != null && widget.backPlateText!.isNotEmpty);
     if (!hasNativePlate && OcrService().isConnected) {
       _runBackgroundOcr();
@@ -200,9 +201,7 @@ class _UploadDialogState extends State<UploadDialog> {
       print("response = = = = => ${response}");
       LoggerService().log("Response: $response");
 
-      print("response Data = = = = => ${response.data}");
-      LoggerService().log("Response Data: ${response.data}");
-      // }
+      _cleanupTemporaryImages();
       if (mounted) {
         Navigator.of(context).pop(); // Close dialog on success
         ScaffoldMessenger.of(context).showSnackBar(
@@ -232,6 +231,28 @@ class _UploadDialogState extends State<UploadDialog> {
         _isUploading = false;
         _errorMessage = e.toString().replaceFirst("Exception: ", "");
       });
+    }
+  }
+
+  void _cleanupTemporaryImages() {
+    final pathsToDelete = [
+      widget.frontImagePath,
+      widget.backImagePath,
+      widget.frontPlateImagePath,
+      widget.backPlateImagePath,
+    ];
+    for (final p in pathsToDelete) {
+      if (p != null && p.isNotEmpty) {
+        try {
+          final f = File(p);
+          if (f.existsSync()) {
+            f.deleteSync();
+            LoggerService().log("Cleaned up temporary image: $p");
+          }
+        } catch (e) {
+          LoggerService().log("Failed to clean up image $p: $e");
+        }
+      }
     }
   }
 
@@ -751,7 +772,10 @@ class _UploadDialogState extends State<UploadDialog> {
                     TextButton(
                       onPressed: _isUploading
                           ? null
-                          : () => Navigator.of(context).pop(),
+                          : () {
+                              _cleanupTemporaryImages();
+                              Navigator.of(context).pop();
+                            },
                       child: Padding(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 12,

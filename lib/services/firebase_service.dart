@@ -17,6 +17,7 @@ class FirebaseService {
         .where('scale_name', isEqualTo: scaleName)
         .where('subdomain', whereIn: subdomains)
         .where('status', isEqualTo: 'pending')
+        .limit(1)
         .snapshots();
   }
 }

@@ -39,9 +39,11 @@ class LiveCameraPlayerState extends State<LiveCameraPlayer> {
   VideoController? controller;
   bool isInitialized = false;
   String? errorMessage;
-  bool? _localOverride; // null = follow widget.paused, true = force play, false = force pause
-  
-  final TransformationController _transformationController = TransformationController();
+  bool?
+  _localOverride; // null = follow widget.paused, true = force play, false = force pause
+
+  final TransformationController _transformationController =
+      TransformationController();
   double _zoomLevel = 1.0;
   double get zoom => _zoomLevel;
   Size _viewportSize = Size.zero;
@@ -97,7 +99,8 @@ class LiveCameraPlayerState extends State<LiveCameraPlayer> {
     try {
       final p = Player(
         configuration: const PlayerConfiguration(
-          bufferSize: 1024 * 1024 * 2, // 2MB demuxer cache max (prevents memory climb)
+          bufferSize:
+              1024 * 1024 * 2, // 2MB demuxer cache max (prevents memory climb)
           pitch: false,
         ),
       );
@@ -111,12 +114,24 @@ class LiveCameraPlayerState extends State<LiveCameraPlayer> {
         final native = p.platform as NativePlayer;
         await native.setProperty('cache', 'no');
         await native.setProperty('cache-secs', '0.2');
-        await native.setProperty('demuxer-max-bytes', '${1024 * 1024 * 2}'); // 2MB
-        await native.setProperty('demuxer-max-back-bytes', '0'); // Never hold played frames in RAM!
+        await native.setProperty(
+          'demuxer-max-bytes',
+          '${1024 * 1024 * 2}',
+        ); // 2MB
+        await native.setProperty(
+          'demuxer-max-back-bytes',
+          '0',
+        ); // Never hold played frames in RAM!
         await native.setProperty('packet-buffering', '0');
         await native.setProperty('profile', 'low-latency');
-        await native.setProperty('framedrop', 'vo'); // Drop stale frames on CPU lag
-        await native.setProperty('hwdec', 'auto'); // GPU hardware decoding (DirectX / D3D11VA)
+        await native.setProperty(
+          'framedrop',
+          'vo',
+        ); // Drop stale frames on CPU lag
+        await native.setProperty(
+          'hwdec',
+          'auto',
+        ); // GPU hardware decoding (DirectX / D3D11VA)
         await native.setProperty('rtsp-transport', 'tcp');
       }
 
@@ -205,19 +220,17 @@ class LiveCameraPlayerState extends State<LiveCameraPlayer> {
       } else {
         final double centerX = _viewportSize.width / 2;
         final double centerY = _viewportSize.height / 2;
-        
+
         final Matrix4 matrix = Matrix4.identity()
           ..translate(centerX, centerY)
           ..scale(targetZoom)
           ..translate(-centerX, -centerY);
-        
+
         _transformationController.value = matrix;
       }
     });
     widget.onZoomChanged?.call(_zoomLevel);
   }
-
-
 
   /// Captures exactly what the operator sees (zoomed / panned view).
   /// Uses the RepaintBoundary render pipeline as primary method so the
@@ -228,24 +241,30 @@ class LiveCameraPlayerState extends State<LiveCameraPlayer> {
       throw Exception("Camera stream is not active or initialized.");
     }
 
-    final directory = await getApplicationDocumentsDirectory();
-    final sanitizedName = widget.cameraName.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_');
-    final timestamp   = DateTime.now().millisecondsSinceEpoch;
+    final directory = await getTemporaryDirectory();
+    final sanitizedName = widget.cameraName.replaceAll(
+      RegExp(r'[^a-zA-Z0-9]'),
+      '_',
+    );
+    final timestamp = DateTime.now().millisecondsSinceEpoch;
 
     // ── Primary: render the zoomed widget view ────────────────────────────
     try {
       final RenderRepaintBoundary? boundary =
-          _repaintKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
+          _repaintKey.currentContext?.findRenderObject()
+              as RenderRepaintBoundary?;
 
       if (boundary != null) {
         // pixelRatio 2.0 doubles resolution for crisp output on desktop
         final ui.Image image = await boundary.toImage(pixelRatio: 2.0);
-        final ByteData? byteData =
-            await image.toByteData(format: ui.ImageByteFormat.png);
+        final ByteData? byteData = await image.toByteData(
+          format: ui.ImageByteFormat.png,
+        );
         image.dispose();
 
         if (byteData != null) {
-          final pngPath = "${directory.path}/snap_${sanitizedName}_$timestamp.png";
+          final pngPath =
+              "${directory.path}/snap_${sanitizedName}_$timestamp.png";
           await File(pngPath).writeAsBytes(byteData.buffer.asUint8List());
           return pngPath;
         }
@@ -255,8 +274,9 @@ class LiveCameraPlayerState extends State<LiveCameraPlayer> {
     }
 
     // ── Fallback: raw unzoomed frame from the media decoder ───────────────
-    final Uint8List? imageBytes =
-        await player!.screenshot(format: 'image/jpeg');
+    final Uint8List? imageBytes = await player!.screenshot(
+      format: 'image/jpeg',
+    );
 
     if (imageBytes != null && imageBytes.isNotEmpty) {
       final jpgPath = "${directory.path}/snap_${sanitizedName}_$timestamp.jpg";
@@ -292,14 +312,17 @@ class LiveCameraPlayerState extends State<LiveCameraPlayer> {
               fit: StackFit.expand,
               children: [
                 _buildVideoView(),
-                
+
                 if (widget.showHeader)
                   Positioned(
                     top: 0,
                     left: 0,
                     right: 0,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 10,
+                      ),
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
                           begin: Alignment.topCenter,
@@ -344,7 +367,7 @@ class LiveCameraPlayerState extends State<LiveCameraPlayer> {
                                   const Shadow(
                                     color: Colors.black,
                                     blurRadius: 4,
-                                  )
+                                  ),
                                 ],
                               ),
                               maxLines: 1,
@@ -363,7 +386,9 @@ class LiveCameraPlayerState extends State<LiveCameraPlayer> {
                       decoration: BoxDecoration(
                         color: Colors.black.withOpacity(0.6),
                         borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.white.withOpacity(0.1)),
+                        border: Border.all(
+                          color: Colors.white.withOpacity(0.1),
+                        ),
                       ),
                       child: Material(
                         color: Colors.transparent,
@@ -420,7 +445,10 @@ class LiveCameraPlayerState extends State<LiveCameraPlayer> {
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   color: Colors.greenAccent.withOpacity(0.05),
-                  border: Border.all(color: Colors.greenAccent.withOpacity(0.2), width: 1.5),
+                  border: Border.all(
+                    color: Colors.greenAccent.withOpacity(0.2),
+                    width: 1.5,
+                  ),
                   boxShadow: [
                     BoxShadow(
                       color: Colors.greenAccent.withOpacity(0.1),
@@ -448,10 +476,7 @@ class LiveCameraPlayerState extends State<LiveCameraPlayer> {
               const SizedBox(height: 6),
               Text(
                 "Click to stream live feed",
-                style: GoogleFonts.inter(
-                  color: Colors.white54,
-                  fontSize: 12,
-                ),
+                style: GoogleFonts.inter(color: Colors.white54, fontSize: 12),
               ),
             ],
           ),
@@ -481,9 +506,12 @@ class LiveCameraPlayerState extends State<LiveCameraPlayer> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.white12,
                   foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
                 ),
-              )
+              ),
             ],
           ),
         ),
@@ -500,7 +528,7 @@ class LiveCameraPlayerState extends State<LiveCameraPlayer> {
             Text(
               "Connecting to stream...",
               style: GoogleFonts.inter(color: Colors.white54, fontSize: 12),
-            )
+            ),
           ],
         ),
       );

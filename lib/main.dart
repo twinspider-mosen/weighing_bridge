@@ -1,14 +1,17 @@
+import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:spider_weighbridge/firebase_options.dart';
+import 'package:spider_weighbridge/services/anpr_service.dart';
 import 'package:spider_weighbridge/services/logger_service.dart';
 import 'package:spider_weighbridge/services/ocr_service.dart';
+import 'package:spider_weighbridge/services/scale_service.dart';
+import 'package:spider_weighbridge/services/session_service.dart';
 import 'package:spider_weighbridge/views/auth/login_screen.dart';
 import 'package:spider_weighbridge/views/weighing_screen.dart';
-import 'package:spider_weighbridge/services/session_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -39,9 +42,36 @@ void main() async {
   runApp(WeighingBridgeApp(hasSession: hasSession));
 }
 
-class WeighingBridgeApp extends StatelessWidget {
+class WeighingBridgeApp extends StatefulWidget {
   final bool hasSession;
   const WeighingBridgeApp({super.key, required this.hasSession});
+
+  @override
+  State<WeighingBridgeApp> createState() => _WeighingBridgeAppState();
+}
+
+class _WeighingBridgeAppState extends State<WeighingBridgeApp> {
+  late final AppLifecycleListener _lifecycleListener;
+
+  @override
+  void initState() {
+    super.initState();
+    _lifecycleListener = AppLifecycleListener(
+      onExitRequested: () async {
+        try {
+          ScaleService().dispose();
+          AnprService().dispose();
+        } catch (_) {}
+        exit(0);
+      },
+    );
+  }
+
+  @override
+  void dispose() {
+    _lifecycleListener.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -54,7 +84,7 @@ class WeighingBridgeApp extends StatelessWidget {
         scaffoldBackgroundColor: const Color(0xFF0A0E12),
         useMaterial3: true,
       ),
-      home: hasSession ? const WeighingScreen() : const LoginScreen(),
+      home: widget.hasSession ? const WeighingScreen() : const LoginScreen(),
     );
   }
 }

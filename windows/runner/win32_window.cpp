@@ -181,10 +181,11 @@ Win32Window::MessageHandler(HWND hwnd,
   switch (message) {
     case WM_DESTROY:
       window_handle_ = nullptr;
-      Destroy();
       if (quit_on_close_) {
         PostQuitMessage(0);
+        ::ExitProcess(0);
       }
+      Destroy();
       return 0;
 
     case WM_DPICHANGED: {

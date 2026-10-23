@@ -97,75 +97,100 @@ class CameraFeedPanel extends StatelessWidget {
           if (savedCameras.isEmpty)
             _buildEmptyState()
           else ...[
-            // Side-by-side camera feeds
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (enableFront)
-                  Expanded(
-                    child: _buildSingleFeed(
-                      label: 'FRONT',
-                      labelColor: Colors.greenAccent,
-                      camera: frontCamera,
-                      playerKey: frontCameraKey,
-                      zoom: frontCameraZoom,
-                      onCameraChanged: onFrontCameraChanged,
-                      onRefresh: onFrontRefreshStream,
-                      onZoomIn: onFrontZoomIn,
-                      onZoomOut: onFrontZoomOut,
-                      onResetZoom: onFrontResetZoom,
-                    ),
-                  ),
-                if (enableFront && enableBack) const SizedBox(width: 16),
-                if (enableBack)
-                  Expanded(
-                    child: _buildSingleFeed(
-                      label: 'BACK',
-                      labelColor: Colors.orangeAccent,
-                      camera: backCamera,
-                      playerKey: backCameraKey,
-                      zoom: backCameraZoom,
-                      onCameraChanged: onBackCameraChanged,
-                      onRefresh: onBackRefreshStream,
-                      onZoomIn: onBackZoomIn,
-                      onZoomOut: onBackZoomOut,
-                      onResetZoom: onBackResetZoom,
-                    ),
-                  ),
-                if (!enableFront && !enableBack)
-                  Expanded(
-                    child: Container(
-                      height: 220,
-                      decoration: BoxDecoration(
-                        color: Colors.black.withOpacity(0.3),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: Colors.white.withOpacity(0.05),
+            LayoutBuilder(
+              builder: (context, constraints) {
+                // If container width is less than 2 cards side-by-side (360 + 16 + 360 = 736), stack vertically in Column
+                final isNarrow = constraints.maxWidth < 740;
+
+                final frontFeed = enableFront
+                    ? _buildSingleFeed(
+                        label: 'FRONT',
+                        labelColor: Colors.greenAccent,
+                        camera: frontCamera,
+                        playerKey: frontCameraKey,
+                        zoom: frontCameraZoom,
+                        onCameraChanged: onFrontCameraChanged,
+                        onRefresh: onFrontRefreshStream,
+                        onZoomIn: onFrontZoomIn,
+                        onZoomOut: onFrontZoomOut,
+                        onResetZoom: onFrontResetZoom,
+                      )
+                    : null;
+
+                final backFeed = enableBack
+                    ? _buildSingleFeed(
+                        label: 'BACK',
+                        labelColor: Colors.orangeAccent,
+                        camera: backCamera,
+                        playerKey: backCameraKey,
+                        zoom: backCameraZoom,
+                        onCameraChanged: onBackCameraChanged,
+                        onRefresh: onBackRefreshStream,
+                        onZoomIn: onBackZoomIn,
+                        onZoomOut: onBackZoomOut,
+                        onResetZoom: onBackResetZoom,
+                      )
+                    : null;
+
+                if (!enableFront && !enableBack) {
+                  return Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 360),
+                      child: Container(
+                        height: 220,
+                        decoration: BoxDecoration(
+                          color: Colors.black.withOpacity(0.3),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: Colors.white.withOpacity(0.05),
+                          ),
                         ),
-                      ),
-                      child: Center(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(
-                              Icons.videocam_off,
-                              color: Colors.white24,
-                              size: 48,
-                            ),
-                            const SizedBox(height: 12),
-                            Text(
-                              'Both front and back cameras are disabled in settings',
-                              style: GoogleFonts.inter(
-                                color: Colors.white38,
-                                fontSize: 13,
+                        child: Center(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(
+                                Icons.videocam_off,
+                                color: Colors.white24,
+                                size: 48,
                               ),
-                            ),
-                          ],
+                              const SizedBox(height: 12),
+                              Text(
+                                'Both front and back cameras are disabled in settings',
+                                style: GoogleFonts.inter(
+                                  color: Colors.white38,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ),
-                  ),
-              ],
+                  );
+                }
+
+                if (isNarrow) {
+                  return Column(
+                    children: [
+                      if (frontFeed != null) frontFeed,
+                      if (frontFeed != null && backFeed != null)
+                        const SizedBox(height: 16),
+                      if (backFeed != null) backFeed,
+                    ],
+                  );
+                }
+
+                return Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (frontFeed != null) Expanded(child: frontFeed),
+                    if (frontFeed != null && backFeed != null)
+                      const SizedBox(width: 16),
+                    if (backFeed != null) Expanded(child: backFeed),
+                  ],
+                );
+              },
             ),
             const SizedBox(height: 20),
             _buildCaptureButton(),
@@ -241,229 +266,203 @@ class CameraFeedPanel extends StatelessWidget {
     required VoidCallback onZoomOut,
     required VoidCallback onResetZoom,
   }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        // Label chip
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          crossAxisAlignment: CrossAxisAlignment.center,
-          spacing: 12,
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 360),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            if (camera != null)
-              CameraZoomControls(
-                currentCameraZoom: zoom,
-                onZoomIn: onZoomIn,
-                onZoomOut: onZoomOut,
-                onResetZoom: onResetZoom,
-              ),
+            // Label chip
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              spacing: 12,
+              children: [
+                if (camera != null)
+                  CameraZoomControls(
+                    currentCameraZoom: zoom,
+                    onZoomIn: onZoomIn,
+                    onZoomOut: onZoomOut,
+                    onResetZoom: onResetZoom,
+                  ),
 
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(
-                color: labelColor.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: labelColor.withOpacity(0.3)),
-              ),
-              child: Text(
-                label,
-                style: GoogleFonts.inter(
-                  color: labelColor,
-                  fontSize: 11,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 1,
-                ),
-              ),
-            ),
-            if (camera != null) ...[
-              Tooltip(
-                message: camera.enableAnpr
-                    ? 'ANPR Active (Managed in Camera Config)'
-                    : 'ANPR Inactive (Managed in Camera Config)',
-                child: Container(
+                Container(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 3,
+                    horizontal: 10,
+                    vertical: 4,
                   ),
                   decoration: BoxDecoration(
-                    color: camera.enableAnpr
-                        ? Colors.greenAccent.withOpacity(0.15)
-                        : Colors.white.withOpacity(0.05),
-                    borderRadius: BorderRadius.circular(6),
-                    border: Border.all(
-                      color: camera.enableAnpr
-                          ? Colors.greenAccent
-                          : Colors.white24,
+                    color: labelColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: labelColor.withOpacity(0.3)),
+                  ),
+                  child: Text(
+                    label,
+                    style: GoogleFonts.inter(
+                      color: labelColor,
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 1,
                     ),
                   ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.document_scanner_outlined,
-                        size: 13,
-                        color: camera.enableAnpr
-                            ? Colors.greenAccent
-                            : Colors.white38,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        camera.enableAnpr ? "ANPR ON" : "ANPR OFF",
-                        style: GoogleFonts.inter(
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                          color: camera.enableAnpr
-                              ? Colors.greenAccent
-                              : Colors.white38,
-                        ),
-                      ),
-                    ],
-                  ),
                 ),
-              ),
-              const SizedBox(width: 4),
-              GestureDetector(
-                onTap: onRefresh,
-                child: const Icon(
-                  Icons.refresh,
-                  color: Colors.tealAccent,
-                  size: 18,
-                ),
-              ),
-              if (onTriggerManualSnap != null) ...[
-                const SizedBox(width: 6),
-                Tooltip(
-                  message: 'Trigger Native Camera Capture',
-                  child: InkWell(
-                    onTap: () => onTriggerManualSnap!(camera),
-                    borderRadius: BorderRadius.circular(6),
+                if (camera != null) ...[
+                  Tooltip(
+                    message: camera.enableAnpr
+                        ? 'ANPR Active (Managed in Camera Config)'
+                        : 'ANPR Inactive (Managed in Camera Config)',
                     child: Container(
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 7,
+                        horizontal: 8,
                         vertical: 3,
                       ),
                       decoration: BoxDecoration(
-                        color: Colors.blueAccent.withOpacity(0.18),
+                        color: camera.enableAnpr
+                            ? Colors.greenAccent.withOpacity(0.15)
+                            : Colors.white.withOpacity(0.05),
                         borderRadius: BorderRadius.circular(6),
                         border: Border.all(
-                          color: Colors.blueAccent.withOpacity(0.4),
+                          color: camera.enableAnpr
+                              ? Colors.greenAccent
+                              : Colors.white24,
                         ),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(
-                            Icons.camera,
-                            size: 12,
-                            color: Colors.blueAccent,
+                          Icon(
+                            Icons.document_scanner_outlined,
+                            size: 13,
+                            color: camera.enableAnpr
+                                ? Colors.greenAccent
+                                : Colors.white38,
                           ),
-                          const SizedBox(width: 3),
+                          const SizedBox(width: 4),
                           Text(
-                            "SNAP",
+                            camera.enableAnpr ? "ANPR ON" : "ANPR OFF",
                             style: GoogleFonts.inter(
                               fontSize: 10,
                               fontWeight: FontWeight.bold,
-                              color: Colors.blueAccent,
+                              color: camera.enableAnpr
+                                  ? Colors.greenAccent
+                                  : Colors.white38,
                             ),
                           ),
                         ],
                       ),
                     ),
                   ),
-                ),
+                  const SizedBox(width: 4),
+                  GestureDetector(
+                    onTap: onRefresh,
+                    child: const Icon(
+                      Icons.refresh,
+                      color: Colors.tealAccent,
+                      size: 18,
+                    ),
+                  ),
+                ],
               ],
-            ],
-          ],
-        ),
-        const SizedBox(height: 8),
-        // Camera selector dropdown
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
-          decoration: BoxDecoration(
-            color: const Color(0xFF1A1F25),
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: Colors.white.withOpacity(0.1)),
-          ),
-          child: DropdownButtonHideUnderline(
-            child: DropdownButton<CameraConfig>(
-              isExpanded: true,
-              dropdownColor: const Color(0xFF1A1F25),
-              value: camera,
-              hint: Text(
-                'Select camera',
-                style: GoogleFonts.inter(color: Colors.white38, fontSize: 12),
+            ),
+            const SizedBox(height: 8),
+            // Camera selector dropdown
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+              decoration: BoxDecoration(
+                color: const Color(0xFF1A1F25),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: Colors.white.withOpacity(0.1)),
               ),
-              icon: const Icon(
-                Icons.arrow_drop_down,
-                color: Colors.greenAccent,
-              ),
-              items: savedCameras.map((cam) {
-                return DropdownMenuItem<CameraConfig>(
-                  value: cam,
-                  child: Text(
-                    "${cam.name} (${cam.ipAddress})",
+              child: DropdownButtonHideUnderline(
+                child: DropdownButton<CameraConfig>(
+                  isExpanded: true,
+                  dropdownColor: const Color(0xFF1A1F25),
+                  value: camera,
+                  hint: Text(
+                    'Select camera',
                     style: GoogleFonts.inter(
-                      fontWeight: FontWeight.w500,
+                      color: Colors.white38,
                       fontSize: 12,
                     ),
-                    overflow: TextOverflow.ellipsis,
                   ),
-                );
-              }).toList(),
-              onChanged: onCameraChanged,
-            ),
-          ),
-        ),
-        const SizedBox(height: 10),
-        // Player with fixed Aspect Ratio (4:3 horizontal or 1:1 square)
-        AspectRatio(
-          aspectRatio: aspectRatio == CameraAspectRatio.ratio1x1
-              ? 1.0
-              : (4.0 / 3.0),
-          child: camera == null
-              ? Container(
-                  decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.3),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.white.withOpacity(0.05)),
+                  icon: const Icon(
+                    Icons.arrow_drop_down,
+                    color: Colors.greenAccent,
                   ),
-                  child: Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(
-                          Icons.videocam_off,
-                          color: Colors.white24,
-                          size: 32,
+                  items: savedCameras.map((cam) {
+                    return DropdownMenuItem<CameraConfig>(
+                      value: cam,
+                      child: Text(
+                        "${cam.name} (${cam.ipAddress})",
+                        style: GoogleFonts.inter(
+                          fontWeight: FontWeight.w500,
+                          fontSize: 12,
                         ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'No camera selected',
-                          style: GoogleFonts.inter(
-                            color: Colors.white38,
-                            fontSize: 12,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    );
+                  }).toList(),
+                  onChanged: onCameraChanged,
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+            // Player with fixed Aspect Ratio (4:3 horizontal or 1:1 square)
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 360, maxHeight: 280),
+              child: AspectRatio(
+                aspectRatio: aspectRatio == CameraAspectRatio.ratio1x1
+                    ? 1.0
+                    : (4.0 / 3.0),
+                child: camera == null
+                    ? Container(
+                        decoration: BoxDecoration(
+                          color: Colors.black.withOpacity(0.3),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: Colors.white.withOpacity(0.05),
                           ),
                         ),
-                      ],
-                    ),
-                  ),
-                )
-              : ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: LiveCameraPlayer(
-                    key: playerKey,
-                    rtspUrl: camera.rtspUrl,
-                    cameraName: camera.name,
-                    ipAddress: camera.ipAddress,
-                    showPauseButton: false,
-                    onZoomChanged: (z) {},
-                  ),
-                ),
-        ),
-        const SizedBox(height: 8),
+                        child: Center(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(
+                                Icons.videocam_off,
+                                color: Colors.white24,
+                                size: 32,
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'No camera selected',
+                                style: GoogleFonts.inter(
+                                  color: Colors.white38,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      )
+                    : ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: LiveCameraPlayer(
+                          key: playerKey,
+                          rtspUrl: camera.rtspUrl,
+                          cameraName: camera.name,
+                          ipAddress: camera.ipAddress,
+                          showPauseButton: false,
+                          onZoomChanged: (z) {},
+                        ),
+                      ),
+              ),
+            ),
+            const SizedBox(height: 8),
 
-        // Zoom controls
-      ],
+            // Zoom controls
+          ],
+        ),
+      ),
     );
   }
 

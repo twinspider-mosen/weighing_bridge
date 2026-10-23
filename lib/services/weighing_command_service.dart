@@ -125,19 +125,29 @@ class WeighingCommandService {
                         ),
                       );
                     }
+                    final bool cameraAllowed = command.cameraEnabled ?? true;
+                    final bool frontEnabled =
+                        cameraAllowed && enableFrontProvider();
+                    final bool backEnabled =
+                        cameraAllowed && enableBackProvider();
+
                     await _executeCapture(
                       context: context,
                       docId: docId,
                       command: command,
                       onLoadingChanged: onLoadingChanged,
-                      enableFrontCamera: enableFrontProvider(),
-                      enableBackCamera: enableBackProvider(),
-                      frontKey: enableFrontProvider() ? frontKeyProvider() : null,
-                      backKey: (enableBackProvider() && backCameraProvider() != null)
+                      enableFrontCamera: frontEnabled,
+                      enableBackCamera: backEnabled,
+                      frontKey: frontEnabled ? frontKeyProvider() : null,
+                      backKey: (backEnabled && backCameraProvider() != null)
                           ? backKeyProvider()
                           : null,
-                      frontCameraConfig: enableFrontProvider() ? frontCameraProvider() : null,
-                      backCameraConfig: enableBackProvider() ? backCameraProvider() : null,
+                      frontCameraConfig: frontEnabled
+                          ? frontCameraProvider()
+                          : null,
+                      backCameraConfig: backEnabled
+                          ? backCameraProvider()
+                          : null,
                       uploadOnCapture: uploadOnCaptureProvider(),
                       currentWeight: currentWeightProvider(),
                       unit: unitProvider(),
@@ -177,19 +187,27 @@ class WeighingCommandService {
                       ),
                     );
                   }
+                  final bool cameraAllowed = command.cameraEnabled ?? true;
+                  final bool frontEnabled =
+                      cameraAllowed && enableFrontProvider();
+                  final bool backEnabled =
+                      cameraAllowed && enableBackProvider();
+
                   await _executeCapture(
                     context: context,
                     docId: docId,
                     command: command,
                     onLoadingChanged: onLoadingChanged,
-                    enableFrontCamera: enableFrontProvider(),
-                    enableBackCamera: enableBackProvider(),
-                    frontKey: enableFrontProvider() ? frontKeyProvider() : null,
-                    backKey: (enableBackProvider() && backCameraProvider() != null)
+                    enableFrontCamera: frontEnabled,
+                    enableBackCamera: backEnabled,
+                    frontKey: frontEnabled ? frontKeyProvider() : null,
+                    backKey: (backEnabled && backCameraProvider() != null)
                         ? backKeyProvider()
                         : null,
-                    frontCameraConfig: enableFrontProvider() ? frontCameraProvider() : null,
-                    backCameraConfig: enableBackProvider() ? backCameraProvider() : null,
+                    frontCameraConfig: frontEnabled
+                        ? frontCameraProvider()
+                        : null,
+                    backCameraConfig: backEnabled ? backCameraProvider() : null,
                     uploadOnCapture: uploadOnCaptureProvider(),
                     currentWeight: currentWeightProvider(),
                     unit: unitProvider(),
@@ -236,6 +254,7 @@ class WeighingCommandService {
       autoUpload: true,
       enableFrontCamera: enableFrontCamera,
       enableBackCamera: enableBackCamera,
+      cameraEnabled: command.cameraEnabled,
       frontCameraKey: frontKey,
       backCameraKey: backKey,
       frontCameraConfig: frontCameraConfig,

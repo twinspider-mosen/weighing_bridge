@@ -21,6 +21,7 @@ class CommandModel {
   final String? frontPlateText;
   final File? backPlate;
   final String? backPlateText;
+  final bool? cameraEnabled;
 
   CommandModel({
     required this.subdomain,
@@ -39,6 +40,7 @@ class CommandModel {
     this.frontPlateText,
     this.backPlate,
     this.backPlateText,
+    this.cameraEnabled,
   });
 
   CommandModel copyWith({
@@ -58,6 +60,7 @@ class CommandModel {
     String? frontPlateText,
     File? backPlate,
     String? backPlateText,
+    bool? cameraEnabled,
   }) {
     return CommandModel(
       subdomain: subdomain ?? this.subdomain,
@@ -76,6 +79,7 @@ class CommandModel {
       frontPlateText: frontPlateText ?? this.frontPlateText,
       backPlate: backPlate ?? this.backPlate,
       backPlateText: backPlateText ?? this.backPlateText,
+      cameraEnabled: cameraEnabled ?? this.cameraEnabled,
     );
   }
 
@@ -103,19 +107,27 @@ class CommandModel {
           : null,
       recordStage: data['record_stage'] ?? '',
       moduleType: data['module_type'] ?? '',
-      createdAt: _parseDateTime(data['created_at']) ??
+      createdAt:
+          _parseDateTime(data['created_at']) ??
           _parseDateTime(data['timestamp']) ??
           _parseDateTime(data['createdAt']),
-      frontPlate: data['front_plate'] != null &&
+      frontPlate:
+          data['front_plate'] != null &&
               data['front_plate'].toString().isNotEmpty
           ? File(data['front_plate'].toString())
           : null,
       frontPlateText: data['front_plate_text']?.toString(),
-      backPlate: data['back_plate'] != null &&
-              data['back_plate'].toString().isNotEmpty
+      backPlate:
+          data['back_plate'] != null && data['back_plate'].toString().isNotEmpty
           ? File(data['back_plate'].toString())
           : null,
       backPlateText: data['back_plate_text']?.toString(),
+      cameraEnabled: data.containsKey('camera_enabled')
+          ? (data['camera_enabled'] == true ||
+                data['camera_enabled'].toString().toLowerCase() == 'true' ||
+                data['camera_enabled'] == 1 ||
+                data['camera_enabled'] == '1')
+          : null,
     );
   }
 
@@ -132,6 +144,7 @@ class CommandModel {
       recordType: '',
       recordStage: '',
       moduleType: '',
+      cameraEnabled: true,
     );
   }
 
@@ -165,6 +178,10 @@ class CommandModel {
     }
     if (backPlateText != null && backPlateText!.isNotEmpty) {
       map['back_plate_text'] = backPlateText;
+    }
+
+    if (cameraEnabled != null) {
+      map['camera_enabled'] = cameraEnabled;
     }
 
     return map;

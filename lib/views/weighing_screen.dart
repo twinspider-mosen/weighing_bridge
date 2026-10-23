@@ -1,16 +1,12 @@
 import 'dart:async';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:spider_weighbridge/components/live_camera_player.dart';
 import 'package:spider_weighbridge/model/command_model.dart';
 import 'package:spider_weighbridge/services/anpr_service.dart';
 import 'package:spider_weighbridge/services/camera_service.dart';
-import 'package:spider_weighbridge/services/firebase_service.dart';
-import 'package:spider_weighbridge/services/logger_service.dart';
 import 'package:spider_weighbridge/services/ocr_service.dart';
 import 'package:spider_weighbridge/services/session_service.dart';
 import 'package:spider_weighbridge/services/weighing_command_service.dart';
-import 'package:spider_weighbridge/utils/helper_functions.dart';
 import 'package:spider_weighbridge/views/camera_management_screen.dart';
 import 'weighing/weighing_drawer.dart';
 import 'weighing/weighing_status_header.dart';
@@ -38,30 +34,10 @@ class _WeighingScreenState extends State<WeighingScreen> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   StreamSubscription<String>? _weightSubscription;
-  late final Future<Map<String, dynamic>> _systemDetailsFuture;
-  Stream? _cachedCommandStream;
-  String _cachedScaleName = '';
-  List<String> _cachedSubdomains = [];
-
-  Stream _getOrCreateCommandStream(String scaleName, List<String> subdomains) {
-    if (_cachedCommandStream != null &&
-        scaleName == _cachedScaleName &&
-        listEquals(subdomains, _cachedSubdomains)) {
-      return _cachedCommandStream!;
-    }
-    _cachedScaleName = scaleName;
-    _cachedSubdomains = List<String>.from(subdomains);
-    _cachedCommandStream = FirebaseService.getCommandStream(
-      scaleName: scaleName,
-      subdomains: subdomains,
-    );
-    return _cachedCommandStream!;
-  }
 
   @override
   void initState() {
     super.initState();
-    _systemDetailsFuture = HelperFunctions.getSystemDetails();
     _controller.refreshPorts(() {});
     _controller.loadSavedCameras(() {});
     _controller.loadSettings(() {});
@@ -127,136 +103,90 @@ class _WeighingScreenState extends State<WeighingScreen> {
           onSettingsUpdated: () =>
               _controller.loadSettings(() => setState(() {})),
         ),
-        body: FutureBuilder<Map<String, dynamic>>(
-          future: _systemDetailsFuture,
-          builder: (context, snap) {
-            if (!snap.hasData || snap.hasError) return const SizedBox.shrink();
-            final scaleName = snap.data!['scale_name'] ?? '';
-            final subdomains = List<String>.from(snap.data!['subdomains'] ?? []);
-            return StreamBuilder(
-              stream: _getOrCreateCommandStream(scaleName, subdomains),
-              builder: (context, snapshot) {
-                if (snapshot.hasError)
-                  LoggerService().log('Stream error: ${snapshot.error}');
-                final commands = snapshot.data != null
-                    ? List<CommandModel>.from(
-                        snapshot.data!.docs.map(
-                          (doc) => CommandModel.fromMap(
-                            doc.data() as Map<String, dynamic>,
-                          ),
+        body: Container(
+          decoration: const BoxDecoration(
+            gradient: RadialGradient(
+              center: Alignment.center,
+              radius: 1.5,
+              colors: [Color(0xFF1A1F25), Color(0xFF0A0E12)],
+            ),
+          ),
+          child: SafeArea(
+            child: Padding(
+              padding: EdgeInsets.all(layout.padding),
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final isWide = constraints.maxWidth > 950;
+                  return SingleChildScrollView(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        WeighingStatusHeader(
+                          isListening: _controller.isListening,
+                          status: _controller.status,
+                          requireApproval:
+                              _controller.requireApprovalForRecords,
                         ),
-                      )
-                    : <CommandModel>[];
-                // Sort oldest first in Dart memory to eliminate Firestore index requirement
-                commands.sort((a, b) {
-                  final aTime = a.createdAt;
-                  final bTime = b.createdAt;
-                  if (aTime == null && bTime == null) return 0;
-                  if (aTime == null) return 1;
-                  if (bTime == null) return -1;
-                  return aTime.compareTo(bTime);
-                });
-                final command = commands.isNotEmpty
-                    ? commands.first
-                    : CommandModel.dummy();
-
-                return Container(
-                  decoration: const BoxDecoration(
-                    gradient: RadialGradient(
-                      center: Alignment.center,
-                      radius: 1.5,
-                      colors: [Color(0xFF1A1F25), Color(0xFF0A0E12)],
+                        SizedBox(height: layout.gap),
+                        WeighingDesktopView(
+                          controller: _controller,
+                          command: CommandModel.dummy(),
+                          isWide: isWide,
+                          onStateChanged: () => setState(() {}),
+                          onManageCameras: _manageCameras,
+                          frontCameraKey: _frontCameraKey,
+                          backCameraKey: _backCameraKey,
+                          onFrontRefreshStream: () =>
+                              _frontCameraKey.currentState?.refreshStream(),
+                          onFrontZoomIn: () {
+                            _frontCameraKey.currentState?.zoomIn();
+                            setState(
+                              () => _controller.frontCameraZoom =
+                                  _frontCameraKey.currentState?.zoom ?? 1.0,
+                            );
+                          },
+                          onFrontZoomOut: () {
+                            _frontCameraKey.currentState?.zoomOut();
+                            setState(
+                              () => _controller.frontCameraZoom =
+                                  _frontCameraKey.currentState?.zoom ?? 1.0,
+                            );
+                          },
+                          onFrontResetZoom: () {
+                            _frontCameraKey.currentState?.resetZoom();
+                            setState(() => _controller.frontCameraZoom = 1.0);
+                          },
+                          onBackRefreshStream: () =>
+                              _backCameraKey.currentState?.refreshStream(),
+                          onBackZoomIn: () {
+                            _backCameraKey.currentState?.zoomIn();
+                            setState(
+                              () => _controller.backCameraZoom =
+                                  _backCameraKey.currentState?.zoom ?? 1.0,
+                            );
+                          },
+                          onBackZoomOut: () {
+                            _backCameraKey.currentState?.zoomOut();
+                            setState(
+                              () => _controller.backCameraZoom =
+                                  _backCameraKey.currentState?.zoom ?? 1.0,
+                            );
+                          },
+                          onBackResetZoom: () {
+                            _backCameraKey.currentState?.resetZoom();
+                            setState(() => _controller.backCameraZoom = 1.0);
+                          },
+                          onCaptureSnap: () =>
+                              _captureSnap(CommandModel.dummy()),
+                          onTriggerManualSnap: _triggerManualSnap,
+                        ),
+                      ],
                     ),
-                  ),
-                  child: SafeArea(
-                    child: Padding(
-                      padding: EdgeInsets.all(layout.padding),
-                      child: LayoutBuilder(
-                        builder: (context, constraints) {
-                          final isWide = constraints.maxWidth > 950;
-                          return SingleChildScrollView(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [
-                                WeighingStatusHeader(
-                                  isListening: _controller.isListening,
-                                  status: _controller.status,
-                                  requireApproval:
-                                      _controller.requireApprovalForRecords,
-                                ),
-                                SizedBox(height: layout.gap),
-                                WeighingDesktopView(
-                                  controller: _controller,
-                                  command: command,
-                                  isWide: isWide,
-                                  onStateChanged: () => setState(() {}),
-                                  onManageCameras: _manageCameras,
-                                  frontCameraKey: _frontCameraKey,
-                                  backCameraKey: _backCameraKey,
-                                  onFrontRefreshStream: () => _frontCameraKey
-                                      .currentState
-                                      ?.refreshStream(),
-                                  onFrontZoomIn: () {
-                                    _frontCameraKey.currentState?.zoomIn();
-                                    setState(
-                                      () => _controller.frontCameraZoom =
-                                          _frontCameraKey.currentState?.zoom ??
-                                          1.0,
-                                    );
-                                  },
-                                  onFrontZoomOut: () {
-                                    _frontCameraKey.currentState?.zoomOut();
-                                    setState(
-                                      () => _controller.frontCameraZoom =
-                                          _frontCameraKey.currentState?.zoom ??
-                                          1.0,
-                                    );
-                                  },
-                                  onFrontResetZoom: () {
-                                    _frontCameraKey.currentState?.resetZoom();
-                                    setState(
-                                      () => _controller.frontCameraZoom = 1.0,
-                                    );
-                                  },
-                                  onBackRefreshStream: () => _backCameraKey
-                                      .currentState
-                                      ?.refreshStream(),
-                                  onBackZoomIn: () {
-                                    _backCameraKey.currentState?.zoomIn();
-                                    setState(
-                                      () => _controller.backCameraZoom =
-                                          _backCameraKey.currentState?.zoom ??
-                                          1.0,
-                                    );
-                                  },
-                                  onBackZoomOut: () {
-                                    _backCameraKey.currentState?.zoomOut();
-                                    setState(
-                                      () => _controller.backCameraZoom =
-                                          _backCameraKey.currentState?.zoom ??
-                                          1.0,
-                                    );
-                                  },
-                                  onBackResetZoom: () {
-                                    _backCameraKey.currentState?.resetZoom();
-                                    setState(
-                                      () => _controller.backCameraZoom = 1.0,
-                                    );
-                                  },
-                                  onCaptureSnap: () => _captureSnap(command),
-                                  onTriggerManualSnap: _triggerManualSnap,
-                                ),
-                              ],
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                  ),
-                );
-              },
-            );
-          },
+                  );
+                },
+              ),
+            ),
+          ),
         ),
       ),
     );
@@ -305,13 +235,18 @@ class _WeighingScreenState extends State<WeighingScreen> {
       context: context,
       enableFrontCamera: _controller.enableFrontCamera,
       enableBackCamera: _controller.enableBackCamera,
+      cameraEnabled: command.cameraEnabled,
       frontCameraKey: _controller.enableFrontCamera ? _frontCameraKey : null,
       backCameraKey:
           (_controller.enableBackCamera && _controller.backCamera != null)
           ? _backCameraKey
           : null,
-      frontCameraConfig: _controller.enableFrontCamera ? _controller.frontCamera : null,
-      backCameraConfig: _controller.enableBackCamera ? _controller.backCamera : null,
+      frontCameraConfig: _controller.enableFrontCamera
+          ? _controller.frontCamera
+          : null,
+      backCameraConfig: _controller.enableBackCamera
+          ? _controller.backCamera
+          : null,
       uploadOnCapture: _controller.uploadOnCapture,
       currentWeight: _controller.currentWeight,
       unit: _controller.unit,
